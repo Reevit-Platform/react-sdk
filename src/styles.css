@@ -1,0 +1,526 @@
+/**
+ * @reevit/react - Checkout Widget Styles
+ * Default styles for the Reevit payment widget
+ */
+
+/* CSS Variables for theming */
+:root {
+  --reevit-primary: #0066ff;
+  --reevit-primary-hover: #0052cc;
+  --reevit-background: #ffffff;
+  --reevit-surface: #f8fafc;
+  --reevit-border: #e2e8f0;
+  --reevit-text: #1a1a2e;
+  --reevit-text-secondary: #64748b;
+  --reevit-success: #10b981;
+  --reevit-error: #ef4444;
+  --reevit-warning: #f59e0b;
+  --reevit-radius: 12px;
+  --reevit-radius-sm: 8px;
+  --reevit-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --reevit-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --reevit-shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --reevit-background: #1a1a2e;
+    --reevit-surface: #252542;
+    --reevit-border: #3f3f5a;
+    --reevit-text: #ffffff;
+    --reevit-text-secondary: #a0a0b2;
+  }
+}
+
+/* ===== OVERLAY ===== */
+.reevit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: reevit-fade-in 0.2s ease-out;
+}
+
+@keyframes reevit-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== MODAL ===== */
+.reevit-modal {
+  background: var(--reevit-background);
+  border-radius: var(--reevit-radius);
+  box-shadow: var(--reevit-shadow);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--reevit-font);
+  animation: reevit-slide-up 0.3s ease-out;
+}
+
+@keyframes reevit-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.reevit-modal--success {
+  border: 2px solid var(--reevit-success);
+}
+
+/* Modal Header */
+.reevit-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--reevit-border);
+}
+
+.reevit-modal__branding {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reevit-modal__logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--reevit-text);
+  letter-spacing: -0.5px;
+}
+
+.reevit-modal__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: var(--reevit-surface);
+  color: var(--reevit-text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.reevit-modal__close:hover {
+  background: var(--reevit-border);
+  color: var(--reevit-text);
+}
+
+/* Modal Amount */
+.reevit-modal__amount {
+  padding: 24px 20px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--reevit-primary) 0%, #0052cc 100%);
+  color: white;
+}
+
+.reevit-modal__amount-label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.reevit-modal__amount-value {
+  display: block;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+/* Modal Content */
+.reevit-modal__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Modal Footer */
+.reevit-modal__footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--reevit-border);
+  text-align: center;
+}
+
+.reevit-modal__secured {
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+}
+
+/* ===== PAYMENT METHOD SELECTOR ===== */
+.reevit-method-selector {
+  margin-bottom: 20px;
+}
+
+.reevit-method-selector__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--reevit-text);
+  margin-bottom: 12px;
+}
+
+.reevit-method-selector__options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reevit-method-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--reevit-surface);
+  border: 2px solid var(--reevit-border);
+  border-radius: var(--reevit-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.reevit-method-option:hover {
+  border-color: var(--reevit-primary);
+  background: var(--reevit-background);
+}
+
+.reevit-method-option--selected {
+  border-color: var(--reevit-primary);
+  background: rgba(0, 102, 255, 0.05);
+}
+
+.reevit-method-option--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reevit-method-option__icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.reevit-method-option__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.reevit-method-option__label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--reevit-text);
+}
+
+.reevit-method-option__description {
+  display: block;
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+  margin-top: 2px;
+}
+
+.reevit-method-option__check {
+  color: var(--reevit-primary);
+  flex-shrink: 0;
+}
+
+/* ===== MOBILE MONEY FORM ===== */
+.reevit-momo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.reevit-momo-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reevit-momo-form__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--reevit-text);
+}
+
+.reevit-momo-form__input {
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid var(--reevit-border);
+  border-radius: var(--reevit-radius-sm);
+  background: var(--reevit-background);
+  color: var(--reevit-text);
+  transition: all 0.15s ease;
+  font-family: var(--reevit-font);
+}
+
+.reevit-momo-form__input:focus {
+  outline: none;
+  border-color: var(--reevit-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+.reevit-momo-form__input--error {
+  border-color: var(--reevit-error);
+}
+
+.reevit-momo-form__input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.reevit-momo-form__formatted {
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+}
+
+.reevit-momo-form__error {
+  font-size: 12px;
+  color: var(--reevit-error);
+}
+
+.reevit-momo-form__networks {
+  display: flex;
+  gap: 10px;
+}
+
+.reevit-network-btn {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 2px solid var(--reevit-border);
+  border-radius: var(--reevit-radius-sm);
+  background: var(--reevit-surface);
+  color: var(--reevit-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--reevit-font);
+}
+
+.reevit-network-btn:hover {
+  border-color: var(--network-color, var(--reevit-primary));
+}
+
+.reevit-network-btn--selected {
+  border-color: var(--network-color, var(--reevit-primary));
+  background: var(--network-color, var(--reevit-primary));
+  color: #000;
+}
+
+.reevit-momo-form__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.reevit-momo-form__hint {
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* ===== BUTTONS ===== */
+.reevit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--reevit-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--reevit-font);
+  border: none;
+  min-height: 48px;
+}
+
+.reevit-btn--primary {
+  flex: 1;
+  background: var(--reevit-primary);
+  color: white;
+}
+
+.reevit-btn--primary:hover:not(:disabled) {
+  background: var(--reevit-primary-hover);
+}
+
+.reevit-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reevit-btn--secondary {
+  background: var(--reevit-surface);
+  color: var(--reevit-text);
+  border: 2px solid var(--reevit-border);
+}
+
+.reevit-btn--secondary:hover:not(:disabled) {
+  background: var(--reevit-border);
+}
+
+.reevit-trigger-btn {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--reevit-primary);
+  color: white;
+  border: none;
+  border-radius: var(--reevit-radius-sm);
+  cursor: pointer;
+  font-family: var(--reevit-font);
+  transition: all 0.15s ease;
+}
+
+.reevit-trigger-btn:hover {
+  background: var(--reevit-primary-hover);
+}
+
+/* ===== STATES ===== */
+.reevit-loading,
+.reevit-success,
+.reevit-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+}
+
+.reevit-success__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--reevit-success);
+  color: white;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: reevit-pop 0.3s ease-out;
+}
+
+.reevit-error__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--reevit-error);
+  color: white;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes reevit-pop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.reevit-success h3,
+.reevit-error h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--reevit-text);
+  margin: 0;
+}
+
+.reevit-success p,
+.reevit-error p {
+  font-size: 14px;
+  color: var(--reevit-text-secondary);
+  margin: 0;
+}
+
+/* ===== SPINNER ===== */
+.reevit-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--reevit-border);
+  border-top-color: var(--reevit-primary);
+  border-radius: 50%;
+  animation: reevit-spin 0.8s linear infinite;
+}
+
+@keyframes reevit-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Large spinner for loading states */
+.reevit-loading .reevit-spinner {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+}
+
+/* ===== PSP BRIDGE ===== */
+.reevit-psp-bridge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+}
+
+.reevit-psp-bridge__loading p {
+  font-size: 14px;
+  color: var(--reevit-text-secondary);
+  margin: 0;
+}
+
+/* ===== METHOD STEP ACTIONS ===== */
+.reevit-method-step__actions {
+  margin-top: 20px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .reevit-modal {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  .reevit-modal__amount-value {
+    font-size: 28px;
+  }
+
+  .reevit-momo-form__networks {
+    flex-direction: column;
+  }
+
+  .reevit-momo-form__actions {
+    flex-direction: column-reverse;
+  }
+
+  .reevit-btn--secondary {
+    flex: none;
+  }
+}

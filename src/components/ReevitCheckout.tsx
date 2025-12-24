@@ -1,0 +1,319 @@
+/**
+ * ReevitCheckout Component
+ * Main checkout component that orchestrates the payment flow
+ */
+
+import { useEffect, useState, useCallback, createContext, useContext } from 'react';
+import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData } from '../types';
+import { useReevit } from '../hooks/useReevit';
+import { PaymentMethodSelector } from './PaymentMethodSelector';
+import { MobileMoneyForm } from './MobileMoneyForm';
+import { PaystackBridge } from '../bridges/PaystackBridge';
+import { formatAmount, createThemeVariables, cn } from '../utils';
+
+// Context for nested components
+interface ReevitContextValue {
+  publicKey: string;
+  amount: number;
+  currency: string;
+}
+
+const ReevitContext = createContext<ReevitContextValue | null>(null);
+
+export function useReevitContext() {
+  const context = useContext(ReevitContext);
+  if (!context) {
+    throw new Error('useReevitContext must be used within ReevitCheckout');
+  }
+  return context;
+}
+
+export function ReevitCheckout({
+  // Config
+  publicKey,
+  amount,
+  currency,
+  email = '',
+  phone = '',
+  reference,
+  metadata,
+  paymentMethods = ['card', 'mobile_money'],
+  // Callbacks
+  onSuccess,
+  onError,
+  onClose,
+  onStateChange,
+  // UI
+  children,
+  autoOpen = false,
+  theme,
+}: ReevitCheckoutProps) {
+  const [isOpen, setIsOpen] = useState(autoOpen);
+  const [showPSPBridge, setShowPSPBridge] = useState(false);
+  const [momoData, setMomoData] = useState<MobileMoneyFormData | null>(null);
+
+  const {
+    status,
+    paymentIntent,
+    selectedMethod,
+    error,
+    result,
+    initialize,
+    selectMethod,
+    processPayment,
+    reset,
+    close: closeCheckout,
+    isLoading,
+    isComplete,
+  } = useReevit({
+    config: { publicKey, amount, currency, email, phone, reference, metadata, paymentMethods },
+    onSuccess: (result) => {
+      onSuccess?.(result);
+      // Keep modal open briefly to show success
+      setTimeout(() => {
+        setIsOpen(false);
+      }, 2000);
+    },
+    onError,
+    onClose: () => {
+      setIsOpen(false);
+      onClose?.();
+    },
+    onStateChange,
+  });
+
+  // Initialize when opened
+  useEffect(() => {
+    if (isOpen && status === 'idle') {
+      initialize();
+    }
+  }, [isOpen, status, initialize]);
+
+  // Open modal
+  const handleOpen = useCallback(() => {
+    setIsOpen(true);
+    setShowPSPBridge(false);
+    setMomoData(null);
+  }, []);
+
+  // Close modal
+  const handleClose = useCallback(() => {
+    closeCheckout();
+    setIsOpen(false);
+    setShowPSPBridge(false);
+    setMomoData(null);
+  }, [closeCheckout]);
+
+  // Handle payment method selection
+  const handleMethodSelect = useCallback(
+    (method: PaymentMethod) => {
+      selectMethod(method);
+    },
+    [selectMethod]
+  );
+
+  // Handle continue after method selection
+  const handleContinue = useCallback(() => {
+    if (!selectedMethod) return;
+
+    if (selectedMethod === 'card') {
+      // For card payments, show PSP bridge (Paystack popup)
+      setShowPSPBridge(true);
+    }
+    // Mobile money form is already shown when selected
+  }, [selectedMethod]);
+
+  // Handle mobile money form submission
+  const handleMomoSubmit = useCallback(
+    (data: MobileMoneyFormData) => {
+      setMomoData(data);
+      setShowPSPBridge(true);
+    },
+    []
+  );
+
+  // Handle PSP callback
+  const handlePSPSuccess = useCallback(
+    (pspResult: any) => {
+      processPayment({ ...pspResult, momoData });
+    },
+    [processPayment, momoData]
+  );
+
+  const handlePSPError = useCallback(
+    (error: any) => {
+      setShowPSPBridge(false);
+      onError?.(error);
+    },
+    [onError]
+  );
+
+  const handlePSPClose = useCallback(() => {
+    setShowPSPBridge(false);
+  }, []);
+
+  // Back button handler
+  const handleBack = useCallback(() => {
+    reset();
+    setMomoData(null);
+    setShowPSPBridge(false);
+  }, [reset]);
+
+  // Theme styles
+  const themeStyles = theme ? createThemeVariables(theme as unknown as Record<string, string | undefined>) : {};
+
+  // Render trigger
+  const trigger = children ? (
+    <span onClick={handleOpen} role="button" tabIndex={0}>
+      {children}
+    </span>
+  ) : (
+    <button className="reevit-trigger-btn" onClick={handleOpen}>
+      Pay {formatAmount(amount, currency)}
+    </button>
+  );
+
+  // Render content based on state
+  const renderContent = () => {
+    // Loading state
+    if (status === 'loading') {
+      return (
+        <div className="reevit-loading">
+          <div className="reevit-spinner" />
+          <p>Preparing checkout...</p>
+        </div>
+      );
+    }
+
+    // Success state
+    if (status === 'success' && result) {
+      return (
+        <div className="reevit-success">
+          <div className="reevit-success__icon">✓</div>
+          <h3>Payment Successful</h3>
+          <p>Reference: {result.reference}</p>
+        </div>
+      );
+    }
+
+    // Error state (only if not recoverable)
+    if (status === 'failed' && error && !error.recoverable) {
+      return (
+        <div className="reevit-error">
+          <div className="reevit-error__icon">✕</div>
+          <h3>Payment Failed</h3>
+          <p>{error.message}</p>
+          <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    // PSP Bridge (Paystack popup)
+    if (showPSPBridge) {
+      return (
+        <PaystackBridge
+          publicKey={publicKey}
+          email={email}
+          amount={amount}
+          currency={currency}
+          reference={reference}
+          metadata={metadata}
+          channels={selectedMethod === 'mobile_money' ? ['mobile_money'] : ['card']}
+          onSuccess={handlePSPSuccess}
+          onError={handlePSPError}
+          onClose={handlePSPClose}
+        />
+      );
+    }
+
+    // Mobile money form
+    if (selectedMethod === 'mobile_money' && !showPSPBridge) {
+      return (
+        <MobileMoneyForm
+          onSubmit={handleMomoSubmit}
+          onCancel={handleBack}
+          isLoading={isLoading}
+          initialPhone={phone}
+        />
+      );
+    }
+
+    // Method selection
+    return (
+      <div className="reevit-method-step">
+        <PaymentMethodSelector
+          methods={paymentMethods}
+          selectedMethod={selectedMethod}
+          onSelect={handleMethodSelect}
+          disabled={isLoading}
+        />
+
+        {selectedMethod && selectedMethod !== 'mobile_money' && (
+          <div className="reevit-method-step__actions">
+            <button
+              className="reevit-btn reevit-btn--primary"
+              onClick={handleContinue}
+              disabled={isLoading}
+            >
+              Continue
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <ReevitContext.Provider value={{ publicKey, amount, currency }}>
+      {trigger}
+
+      {isOpen && (
+        <div className="reevit-overlay" onClick={handleClose}>
+          <div
+            className={cn('reevit-modal', isComplete && 'reevit-modal--success')}
+            style={themeStyles}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Header */}
+            <div className="reevit-modal__header">
+              <div className="reevit-modal__branding">
+                <span className="reevit-modal__logo">Reevit</span>
+              </div>
+              <button
+                className="reevit-modal__close"
+                onClick={handleClose}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Amount display */}
+            <div className="reevit-modal__amount">
+              <span className="reevit-modal__amount-label">Amount</span>
+              <span className="reevit-modal__amount-value">
+                {formatAmount(amount, currency)}
+              </span>
+            </div>
+
+            {/* Content */}
+            <div className="reevit-modal__content">
+              {renderContent()}
+            </div>
+
+            {/* Footer */}
+            <div className="reevit-modal__footer">
+              <span className="reevit-modal__secured">
+                🔒 Secured by Reevit
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </ReevitContext.Provider>
+  );
+}

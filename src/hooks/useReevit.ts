@@ -1,0 +1,347 @@
+/**
+ * useReevit hook
+ * Core hook for managing Reevit checkout state and API interactions
+ */
+
+import { useCallback, useReducer, useEffect, useRef } from 'react';
+import type {
+  ReevitCheckoutConfig,
+  CheckoutState,
+  PaymentMethod,
+  PaymentResult,
+  PaymentError,
+  PaymentIntent,
+} from '../types';
+import { generateReference } from '../utils';
+import { ReevitAPIClient, type PaymentIntentResponse } from '../api';
+
+// State shape
+interface ReevitState {
+  status: CheckoutState;
+  paymentIntent: PaymentIntent | null;
+  selectedMethod: PaymentMethod | null;
+  error: PaymentError | null;
+  result: PaymentResult | null;
+}
+
+// Actions
+type ReevitAction =
+  | { type: 'INIT_START' }
+  | { type: 'INIT_SUCCESS'; payload: PaymentIntent }
+  | { type: 'INIT_ERROR'; payload: PaymentError }
+  | { type: 'SELECT_METHOD'; payload: PaymentMethod }
+  | { type: 'PROCESS_START' }
+  | { type: 'PROCESS_SUCCESS'; payload: PaymentResult }
+  | { type: 'PROCESS_ERROR'; payload: PaymentError }
+  | { type: 'RESET' }
+  | { type: 'CLOSE' };
+
+// Initial state
+const initialState: ReevitState = {
+  status: 'idle',
+  paymentIntent: null,
+  selectedMethod: null,
+  error: null,
+  result: null,
+};
+
+// Reducer
+function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
+  switch (action.type) {
+    case 'INIT_START':
+      return { ...state, status: 'loading', error: null };
+    case 'INIT_SUCCESS':
+      return { ...state, status: 'ready', paymentIntent: action.payload };
+    case 'INIT_ERROR':
+      return { ...state, status: 'failed', error: action.payload };
+    case 'SELECT_METHOD':
+      return { ...state, status: 'method_selected', selectedMethod: action.payload };
+    case 'PROCESS_START':
+      return { ...state, status: 'processing', error: null };
+    case 'PROCESS_SUCCESS':
+      return { ...state, status: 'success', result: action.payload };
+    case 'PROCESS_ERROR':
+      return { ...state, status: 'failed', error: action.payload };
+    case 'RESET':
+      return { ...initialState, status: 'ready', paymentIntent: state.paymentIntent };
+    case 'CLOSE':
+      return { ...state, status: 'closed' };
+    default:
+      return state;
+  }
+}
+
+interface UseReevitOptions {
+  config: ReevitCheckoutConfig;
+  onSuccess?: (result: PaymentResult) => void;
+  onError?: (error: PaymentError) => void;
+  onClose?: () => void;
+  onStateChange?: (state: CheckoutState) => void;
+  /** Custom API base URL (for testing or self-hosted deployments) */
+  apiBaseUrl?: string;
+}
+
+/**
+ * Maps PSP provider names from backend to PSP type used by bridges
+ */
+function mapProviderToPsp(provider: string): 'paystack' | 'hubtel' | 'flutterwave' {
+  const providerLower = provider.toLowerCase();
+  if (providerLower.includes('paystack')) return 'paystack';
+  if (providerLower.includes('hubtel')) return 'hubtel';
+  if (providerLower.includes('flutterwave')) return 'flutterwave';
+  // Default to paystack if unknown
+  return 'paystack';
+}
+
+/**
+ * Maps backend payment intent response to SDK PaymentIntent type
+ */
+function mapToPaymentIntent(
+  response: PaymentIntentResponse,
+  config: ReevitCheckoutConfig
+): PaymentIntent {
+  return {
+    id: response.id,
+    clientSecret: response.client_secret,
+    amount: response.amount,
+    currency: response.currency,
+    status: response.status as 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled',
+    recommendedPsp: mapProviderToPsp(response.provider),
+    availableMethods: config.paymentMethods || ['card', 'mobile_money'],
+    connectionId: response.connection_id,
+    provider: response.provider,
+    feeAmount: response.fee_amount,
+    feeCurrency: response.fee_currency,
+    netAmount: response.net_amount,
+    metadata: config.metadata,
+  };
+}
+
+export function useReevit(options: UseReevitOptions) {
+  const { config, onSuccess, onError, onClose, onStateChange, apiBaseUrl } = options;
+  const [state, dispatch] = useReducer(reevitReducer, initialState);
+
+  // Create API client ref (stable across re-renders)
+  const apiClientRef = useRef<ReevitAPIClient | null>(null);
+
+  // Initialize API client
+  if (!apiClientRef.current) {
+    apiClientRef.current = new ReevitAPIClient({
+      publicKey: config.publicKey,
+      baseUrl: apiBaseUrl,
+    });
+  }
+
+  // Notify on state changes
+  useEffect(() => {
+    onStateChange?.(state.status);
+  }, [state.status, onStateChange]);
+
+  // Initialize payment intent
+  const initialize = useCallback(
+    async (method?: PaymentMethod) => {
+      dispatch({ type: 'INIT_START' });
+
+      try {
+        const apiClient = apiClientRef.current;
+        if (!apiClient) {
+          throw new Error('API client not initialized');
+        }
+
+        // Generate reference if not provided
+        const reference = config.reference || generateReference();
+
+        // Determine country from currency (can be enhanced with IP detection)
+        const country = detectCountryFromCurrency(config.currency);
+
+        // Select payment method to send to backend
+        const paymentMethod = method || config.paymentMethods?.[0] || 'card';
+
+        // Call the Reevit API to create a payment intent
+        const { data, error } = await apiClient.createPaymentIntent(
+          { ...config, reference },
+          paymentMethod,
+          country
+        );
+
+        if (error) {
+          dispatch({ type: 'INIT_ERROR', payload: error });
+          onError?.(error);
+          return;
+        }
+
+        if (!data) {
+          const noDataError: PaymentError = {
+            code: 'INIT_FAILED',
+            message: 'No data received from API',
+            recoverable: true,
+          };
+          dispatch({ type: 'INIT_ERROR', payload: noDataError });
+          onError?.(noDataError);
+          return;
+        }
+
+        // Map response to PaymentIntent
+        const paymentIntent = mapToPaymentIntent(data, { ...config, reference });
+
+        dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
+      } catch (err) {
+        const error: PaymentError = {
+          code: 'INIT_FAILED',
+          message: err instanceof Error ? err.message : 'Failed to initialize checkout',
+          recoverable: true,
+          originalError: err,
+        };
+        dispatch({ type: 'INIT_ERROR', payload: error });
+        onError?.(error);
+      }
+    },
+    [config, onError, apiBaseUrl]
+  );
+
+  // Select payment method
+  const selectMethod = useCallback((method: PaymentMethod) => {
+    dispatch({ type: 'SELECT_METHOD', payload: method });
+  }, []);
+
+  // Process payment - called after PSP bridge returns success
+  const processPayment = useCallback(
+    async (paymentData: Record<string, unknown>) => {
+      if (!state.paymentIntent || !state.selectedMethod) {
+        return;
+      }
+
+      dispatch({ type: 'PROCESS_START' });
+
+      try {
+        const apiClient = apiClientRef.current;
+        if (!apiClient) {
+          throw new Error('API client not initialized');
+        }
+
+        // Confirm the payment with the backend
+        const { data, error } = await apiClient.confirmPayment(state.paymentIntent.id);
+
+        if (error) {
+          dispatch({ type: 'PROCESS_ERROR', payload: error });
+          onError?.(error);
+          return;
+        }
+
+        // Build successful payment result
+        const result: PaymentResult = {
+          paymentId: state.paymentIntent.id,
+          reference: (paymentData.reference as string) ||
+            (state.paymentIntent.metadata?.reference as string) || '',
+          amount: state.paymentIntent.amount,
+          currency: state.paymentIntent.currency,
+          paymentMethod: state.selectedMethod,
+          psp: state.paymentIntent.recommendedPsp,
+          pspReference: (paymentData.pspReference as string) ||
+            (data?.provider_ref_id as string) || '',
+          status: 'success',
+          metadata: paymentData,
+        };
+
+        dispatch({ type: 'PROCESS_SUCCESS', payload: result });
+        onSuccess?.(result);
+      } catch (err) {
+        const error: PaymentError = {
+          code: 'PAYMENT_FAILED',
+          message: err instanceof Error ? err.message : 'Payment failed. Please try again.',
+          recoverable: true,
+          originalError: err,
+        };
+        dispatch({ type: 'PROCESS_ERROR', payload: error });
+        onError?.(error);
+      }
+    },
+    [state.paymentIntent, state.selectedMethod, onSuccess, onError]
+  );
+
+  // Handle PSP bridge success (called by PSP bridge components)
+  const handlePspSuccess = useCallback(
+    async (pspData: Record<string, unknown>) => {
+      await processPayment(pspData);
+    },
+    [processPayment]
+  );
+
+  // Handle PSP bridge failure
+  const handlePspError = useCallback(
+    (error: PaymentError) => {
+      dispatch({ type: 'PROCESS_ERROR', payload: error });
+      onError?.(error);
+    },
+    [onError]
+  );
+
+  // Reset checkout
+  const reset = useCallback(() => {
+    dispatch({ type: 'RESET' });
+  }, []);
+
+  // Close checkout
+  const close = useCallback(async () => {
+    // Cancel the payment intent if it exists and is still pending
+    if (state.paymentIntent && state.status !== 'success') {
+      try {
+        const apiClient = apiClientRef.current;
+        if (apiClient) {
+          await apiClient.cancelPaymentIntent(state.paymentIntent.id);
+        }
+      } catch {
+        // Silently ignore cancel errors
+      }
+    }
+
+    dispatch({ type: 'CLOSE' });
+    onClose?.();
+  }, [onClose, state.paymentIntent, state.status]);
+
+  return {
+    // State
+    status: state.status,
+    paymentIntent: state.paymentIntent,
+    selectedMethod: state.selectedMethod,
+    error: state.error,
+    result: state.result,
+
+    // Actions
+    initialize,
+    selectMethod,
+    processPayment,
+    handlePspSuccess,
+    handlePspError,
+    reset,
+    close,
+
+    // Computed
+    isLoading: state.status === 'loading' || state.status === 'processing',
+    isReady: state.status === 'ready' || state.status === 'method_selected',
+    isComplete: state.status === 'success',
+    canRetry: state.error?.recoverable ?? false,
+  };
+}
+
+/**
+ * Detects country code from currency
+ * This is a simple heuristic; in production, you might use IP geolocation
+ */
+function detectCountryFromCurrency(currency: string): string {
+  const currencyToCountry: Record<string, string> = {
+    GHS: 'GH', // Ghana
+    NGN: 'NG', // Nigeria
+    KES: 'KE', // Kenya
+    UGX: 'UG', // Uganda
+    TZS: 'TZ', // Tanzania
+    ZAR: 'ZA', // South Africa
+    XOF: 'CI', // Côte d'Ivoire (CFA)
+    XAF: 'CM', // Cameroon (CFA)
+    USD: 'US', // United States
+    EUR: 'DE', // Europe (default to Germany)
+    GBP: 'GB', // United Kingdom
+  };
+
+  return currencyToCountry[currency.toUpperCase()] || 'GH';
+}

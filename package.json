@@ -1,0 +1,59 @@
+{
+  "name": "@reevit/react",
+  "version": "0.1.0",
+  "description": "Reevit React SDK - Unified Payment Widget",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "reevit",
+    "payments",
+    "checkout",
+    "africa",
+    "react",
+    "paystack",
+    "mobile-money"
+  ],
+  "author": "Reevit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Reevit-Platform/react.git"
+  },
+  "homepage": "https://github.com/Reevit-Platform/react#readme",
+  "bugs": {
+    "url": "https://github.com/Reevit-Platform/react/issues"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
