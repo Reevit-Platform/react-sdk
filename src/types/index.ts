@@ -48,6 +48,8 @@ export interface ReevitCheckoutProps extends ReevitCheckoutConfig, ReevitCheckou
   autoOpen?: boolean;
   /** Custom theme */
   theme?: ReevitTheme;
+  /** Custom API base URL (for testing or self-hosted deployments) */
+  apiBaseUrl?: string;
 }
 
 // Checkout state machine

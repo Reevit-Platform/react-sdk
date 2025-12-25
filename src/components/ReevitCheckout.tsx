@@ -47,6 +47,7 @@ export function ReevitCheckout({
   children,
   autoOpen = false,
   theme,
+  apiBaseUrl,
 }: ReevitCheckoutProps) {
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [showPSPBridge, setShowPSPBridge] = useState(false);
@@ -67,6 +68,7 @@ export function ReevitCheckout({
     isComplete,
   } = useReevit({
     config: { publicKey, amount, currency, email, phone, reference, metadata, paymentMethods },
+    apiBaseUrl,
     onSuccess: (result) => {
       onSuccess?.(result);
       // Keep modal open briefly to show success
