@@ -30,6 +30,7 @@ export interface PaymentIntentResponse {
   provider: string;
   status: string;
   client_secret: string;
+  psp_public_key?: string;
   amount: number;
   currency: string;
   fee_amount: number;

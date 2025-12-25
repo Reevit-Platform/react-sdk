@@ -143,6 +143,8 @@ export interface PaymentIntent {
   id: string;
   /** Client secret for authenticating client-side operations */
   clientSecret: string;
+  /** PSP's public key for client-side SDK initialization */
+  pspPublicKey?: string;
   /** Amount in smallest currency unit */
   amount: number;
   /** Currency code */

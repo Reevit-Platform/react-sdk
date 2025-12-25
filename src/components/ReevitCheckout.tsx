@@ -212,9 +212,11 @@ export function ReevitCheckout({
 
     // PSP Bridge (Paystack popup)
     if (showPSPBridge) {
+      // Use PSP public key from payment intent if available, otherwise fall back to Reevit public key
+      const pspKey = paymentIntent?.pspPublicKey || publicKey;
       return (
         <PaystackBridge
-          publicKey={publicKey}
+          publicKey={pspKey}
           email={email}
           amount={amount}
           currency={currency}

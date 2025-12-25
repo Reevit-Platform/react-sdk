@@ -1,35 +1,48 @@
 /**
  * @reevit/react - Checkout Widget Styles
- * Default styles for the Reevit payment widget
+ * Minimal design system matching Reevit dashboard
  */
 
-/* CSS Variables for theming */
+/* Import Geist Mono font */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
+
+/* CSS Variables for theming - Light mode */
 :root {
-  --reevit-primary: #0066ff;
-  --reevit-primary-hover: #0052cc;
-  --reevit-background: #ffffff;
-  --reevit-surface: #f8fafc;
-  --reevit-border: #e2e8f0;
-  --reevit-text: #1a1a2e;
-  --reevit-text-secondary: #64748b;
-  --reevit-success: #10b981;
-  --reevit-error: #ef4444;
-  --reevit-warning: #f59e0b;
-  --reevit-radius: 12px;
-  --reevit-radius-sm: 8px;
-  --reevit-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --reevit-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --reevit-shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --reevit-primary: oklch(0.922 0 0);
+  --reevit-primary-hover: oklch(0.85 0 0);
+  --reevit-primary-foreground: oklch(0.145 0 0);
+  --reevit-background: oklch(1 0 0);
+  --reevit-surface: oklch(0.97 0 0);
+  --reevit-border: oklch(0.922 0 0);
+  --reevit-text: oklch(0.145 0 0);
+  --reevit-text-secondary: oklch(0.556 0 0);
+  --reevit-muted: oklch(0.708 0 0);
+  --reevit-success: oklch(0.696 0.17 162.48);
+  --reevit-error: oklch(0.577 0.245 27.325);
+  --reevit-warning: oklch(0.828 0.189 84.429);
+  --reevit-radius: 0.625rem;
+  --reevit-radius-sm: 0.5rem;
+  --reevit-radius-lg: 0.75rem;
+  --reevit-font: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --reevit-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --reevit-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   :root {
-    --reevit-background: #1a1a2e;
-    --reevit-surface: #252542;
-    --reevit-border: #3f3f5a;
-    --reevit-text: #ffffff;
-    --reevit-text-secondary: #a0a0b2;
+    --reevit-primary: oklch(0.922 0 0);
+    --reevit-primary-hover: oklch(0.85 0 0);
+    --reevit-primary-foreground: oklch(0.145 0 0);
+    --reevit-background: oklch(0.145 0 0);
+    --reevit-surface: oklch(0.205 0 0);
+    --reevit-border: oklch(1 0 0 / 10%);
+    --reevit-text: oklch(0.985 0 0);
+    --reevit-text-secondary: oklch(0.708 0 0);
+    --reevit-muted: oklch(0.556 0 0);
+    --reevit-success: oklch(0.696 0.17 162.48);
+    --reevit-error: oklch(0.704 0.191 22.216);
+    --reevit-warning: oklch(0.828 0.189 84.429);
   }
 }
 
@@ -37,8 +50,9 @@
 .reevit-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,22 +69,23 @@
 /* ===== MODAL ===== */
 .reevit-modal {
   background: var(--reevit-background);
-  border-radius: var(--reevit-radius);
+  border-radius: var(--reevit-radius-lg);
+  border: 1px solid var(--reevit-border);
   box-shadow: var(--reevit-shadow);
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   font-family: var(--reevit-font);
-  animation: reevit-slide-up 0.3s ease-out;
+  animation: reevit-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes reevit-slide-up {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.98);
+    transform: translateY(16px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -79,7 +94,7 @@
 }
 
 .reevit-modal--success {
-  border: 2px solid var(--reevit-success);
+  border-color: var(--reevit-success);
 }
 
 /* Modal Header */
@@ -98,20 +113,20 @@
 }
 
 .reevit-modal__logo {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--reevit-text);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.02em;
 }
 
 .reevit-modal__close {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: var(--reevit-surface);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--reevit-radius-sm);
+  border: 1px solid var(--reevit-border);
+  background: transparent;
   color: var(--reevit-text-secondary);
-  font-size: 18px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -120,32 +135,35 @@
 }
 
 .reevit-modal__close:hover {
-  background: var(--reevit-border);
+  background: var(--reevit-surface);
   color: var(--reevit-text);
+  border-color: var(--reevit-text-secondary);
 }
 
 /* Modal Amount */
 .reevit-modal__amount {
-  padding: 24px 20px;
+  padding: 32px 20px;
   text-align: center;
-  background: linear-gradient(135deg, var(--reevit-primary) 0%, #0052cc 100%);
-  color: white;
+  background: var(--reevit-surface);
+  border-bottom: 1px solid var(--reevit-border);
 }
 
 .reevit-modal__amount-label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.8;
-  margin-bottom: 4px;
+  letter-spacing: 0.1em;
+  color: var(--reevit-text-secondary);
+  margin-bottom: 8px;
 }
 
 .reevit-modal__amount-value {
   display: block;
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
-  letter-spacing: -1px;
+  letter-spacing: -0.03em;
+  color: var(--reevit-text);
 }
 
 /* Modal Content */
@@ -157,14 +175,17 @@
 
 /* Modal Footer */
 .reevit-modal__footer {
-  padding: 12px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--reevit-border);
   text-align: center;
+  background: var(--reevit-surface);
 }
 
 .reevit-modal__secured {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--reevit-text-secondary);
+  letter-spacing: 0.02em;
 }
 
 /* ===== PAYMENT METHOD SELECTOR ===== */
@@ -173,16 +194,17 @@
 }
 
 .reevit-method-selector__label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--reevit-text);
   margin-bottom: 12px;
+  letter-spacing: 0.02em;
 }
 
 .reevit-method-selector__options {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .reevit-method-option {
@@ -190,9 +212,9 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: var(--reevit-surface);
-  border: 2px solid var(--reevit-border);
-  border-radius: var(--reevit-radius-sm);
+  background: transparent;
+  border: 1px solid var(--reevit-border);
+  border-radius: var(--reevit-radius);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
@@ -200,13 +222,13 @@
 }
 
 .reevit-method-option:hover {
-  border-color: var(--reevit-primary);
-  background: var(--reevit-background);
+  border-color: var(--reevit-text-secondary);
+  background: var(--reevit-surface);
 }
 
 .reevit-method-option--selected {
-  border-color: var(--reevit-primary);
-  background: rgba(0, 102, 255, 0.05);
+  border-color: var(--reevit-text);
+  background: var(--reevit-surface);
 }
 
 .reevit-method-option--disabled {
@@ -215,8 +237,9 @@
 }
 
 .reevit-method-option__icon {
-  font-size: 24px;
+  font-size: 20px;
   flex-shrink: 0;
+  opacity: 0.8;
 }
 
 .reevit-method-option__content {
@@ -226,48 +249,52 @@
 
 .reevit-method-option__label {
   display: block;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--reevit-text);
+  letter-spacing: -0.01em;
 }
 
 .reevit-method-option__description {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--reevit-text-secondary);
   margin-top: 2px;
+  letter-spacing: 0.01em;
 }
 
 .reevit-method-option__check {
-  color: var(--reevit-primary);
+  color: var(--reevit-text);
   flex-shrink: 0;
+  font-size: 14px;
 }
 
 /* ===== MOBILE MONEY FORM ===== */
 .reevit-momo-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .reevit-momo-form__field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .reevit-momo-form__label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--reevit-text);
+  letter-spacing: 0.02em;
 }
 
 .reevit-momo-form__input {
-  padding: 12px 16px;
-  font-size: 16px;
-  border: 2px solid var(--reevit-border);
-  border-radius: var(--reevit-radius-sm);
-  background: var(--reevit-background);
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid var(--reevit-border);
+  border-radius: var(--reevit-radius);
+  background: transparent;
   color: var(--reevit-text);
   transition: all 0.15s ease;
   font-family: var(--reevit-font);
@@ -275,8 +302,8 @@
 
 .reevit-momo-form__input:focus {
   outline: none;
-  border-color: var(--reevit-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  border-color: var(--reevit-text-secondary);
+  background: var(--reevit-surface);
 }
 
 .reevit-momo-form__input--error {
@@ -284,32 +311,32 @@
 }
 
 .reevit-momo-form__input--error:focus {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: var(--reevit-error);
 }
 
 .reevit-momo-form__formatted {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--reevit-text-secondary);
 }
 
 .reevit-momo-form__error {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--reevit-error);
 }
 
 .reevit-momo-form__networks {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .reevit-network-btn {
   flex: 1;
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: 10px 14px;
+  font-size: 12px;
   font-weight: 600;
-  border: 2px solid var(--reevit-border);
-  border-radius: var(--reevit-radius-sm);
-  background: var(--reevit-surface);
+  border: 1px solid var(--reevit-border);
+  border-radius: var(--reevit-radius);
+  background: transparent;
   color: var(--reevit-text);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -317,26 +344,27 @@
 }
 
 .reevit-network-btn:hover {
-  border-color: var(--network-color, var(--reevit-primary));
+  border-color: var(--reevit-text-secondary);
+  background: var(--reevit-surface);
 }
 
 .reevit-network-btn--selected {
-  border-color: var(--network-color, var(--reevit-primary));
-  background: var(--network-color, var(--reevit-primary));
-  color: #000;
+  border-color: var(--reevit-text);
+  background: var(--reevit-text);
+  color: var(--reevit-background);
 }
 
 .reevit-momo-form__actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-top: 8px;
 }
 
 .reevit-momo-form__hint {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--reevit-text-secondary);
   text-align: center;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 /* ===== BUTTONS ===== */
@@ -344,22 +372,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  font-size: 15px;
+  gap: 6px;
+  padding: 10px 18px;
+  font-size: 13px;
   font-weight: 600;
-  border-radius: var(--reevit-radius-sm);
+  border-radius: var(--reevit-radius);
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: var(--reevit-font);
   border: none;
-  min-height: 48px;
+  min-height: 42px;
+  letter-spacing: -0.01em;
 }
 
 .reevit-btn--primary {
   flex: 1;
   background: var(--reevit-primary);
-  color: white;
+  color: var(--reevit-primary-foreground);
 }
 
 .reevit-btn--primary:hover:not(:disabled) {
@@ -372,26 +401,28 @@
 }
 
 .reevit-btn--secondary {
-  background: var(--reevit-surface);
+  background: transparent;
   color: var(--reevit-text);
-  border: 2px solid var(--reevit-border);
+  border: 1px solid var(--reevit-border);
 }
 
 .reevit-btn--secondary:hover:not(:disabled) {
-  background: var(--reevit-border);
+  background: var(--reevit-surface);
+  border-color: var(--reevit-text-secondary);
 }
 
 .reevit-trigger-btn {
-  padding: 12px 24px;
-  font-size: 15px;
+  padding: 10px 18px;
+  font-size: 13px;
   font-weight: 600;
   background: var(--reevit-primary);
-  color: white;
+  color: var(--reevit-primary-foreground);
   border: none;
-  border-radius: var(--reevit-radius-sm);
+  border-radius: var(--reevit-radius);
   cursor: pointer;
   font-family: var(--reevit-font);
   transition: all 0.15s ease;
+  letter-spacing: -0.01em;
 }
 
 .reevit-trigger-btn:hover {
@@ -408,16 +439,16 @@
   justify-content: center;
   padding: 40px 20px;
   text-align: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .reevit-success__icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--reevit-success);
   color: white;
-  font-size: 32px;
+  font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -425,12 +456,12 @@
 }
 
 .reevit-error__icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--reevit-error);
   color: white;
-  font-size: 32px;
+  font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -438,33 +469,34 @@
 
 @keyframes reevit-pop {
   0% { transform: scale(0); }
-  50% { transform: scale(1.2); }
+  50% { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
 
 .reevit-success h3,
 .reevit-error h3 {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--reevit-text);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .reevit-success p,
 .reevit-error p {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--reevit-text-secondary);
   margin: 0;
 }
 
 /* ===== SPINNER ===== */
 .reevit-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid var(--reevit-border);
-  border-top-color: var(--reevit-primary);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--reevit-border);
+  border-top-color: var(--reevit-text);
   border-radius: 50%;
-  animation: reevit-spin 0.8s linear infinite;
+  animation: reevit-spin 0.7s linear infinite;
 }
 
 @keyframes reevit-spin {
@@ -473,9 +505,15 @@
 
 /* Large spinner for loading states */
 .reevit-loading .reevit-spinner {
-  width: 48px;
-  height: 48px;
-  border-width: 4px;
+  width: 32px;
+  height: 32px;
+  border-width: 2px;
+}
+
+.reevit-loading p {
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+  margin: 0;
 }
 
 /* ===== PSP BRIDGE ===== */
@@ -486,18 +524,18 @@
   justify-content: center;
   padding: 40px 20px;
   text-align: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .reevit-psp-bridge__loading p {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--reevit-text-secondary);
   margin: 0;
 }
 
 /* ===== METHOD STEP ACTIONS ===== */
 .reevit-method-step__actions {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -505,7 +543,8 @@
   .reevit-modal {
     max-width: 100%;
     max-height: 100%;
-    border-radius: 0;
+    border-radius: var(--reevit-radius-lg) var(--reevit-radius-lg) 0 0;
+    margin-top: auto;
   }
 
   .reevit-modal__amount-value {

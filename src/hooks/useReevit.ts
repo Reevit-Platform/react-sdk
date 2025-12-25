@@ -103,6 +103,7 @@ function mapToPaymentIntent(
   return {
     id: response.id,
     clientSecret: response.client_secret,
+    pspPublicKey: response.psp_public_key,
     amount: response.amount,
     currency: response.currency,
     status: response.status as 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled',
