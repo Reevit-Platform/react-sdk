@@ -207,13 +207,22 @@ export class ReevitAPIClient {
     method: PaymentMethod,
     country: string = 'GH'
   ): Promise<{ data?: PaymentIntentResponse; error?: PaymentError }> {
+    // Build metadata with customer_email for PSP providers that require it
+    const metadata: Record<string, unknown> = { ...config.metadata };
+    if (config.email) {
+      metadata.customer_email = config.email;
+    }
+    if (config.phone) {
+      metadata.customer_phone = config.phone;
+    }
+
     const request: CreatePaymentIntentRequest = {
       amount: config.amount,
       currency: config.currency,
       method: this.mapPaymentMethod(method),
       country,
-      customer_id: config.metadata?.customerId as string | undefined,
-      metadata: config.metadata,
+      customer_id: config.email || (config.metadata?.customerId as string | undefined),
+      metadata,
     };
 
     return this.request<PaymentIntentResponse>('POST', '/v1/payments/intents', request);
