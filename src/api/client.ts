@@ -135,15 +135,23 @@ export class ReevitAPIClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    // Generate idempotency key for POST requests
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Reevit-Key': this.publicKey,
+      'X-Reevit-Client': '@reevit/react',
+      'X-Reevit-Client-Version': '0.2.3',
+    };
+
+    // Add idempotency key for mutating requests
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+      headers['Idempotency-Key'] = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}${path}`, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.publicKey}`,
-          'X-Reevit-Client': '@reevit/react',
-          'X-Reevit-Client-Version': '1.0.0',
-        },
+        headers,
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
