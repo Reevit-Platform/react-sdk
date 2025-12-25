@@ -113,10 +113,9 @@
 }
 
 .reevit-modal__logo {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--reevit-text);
-  letter-spacing: -0.02em;
+  height: 18px;
+  width: auto;
+  object-fit: contain;
 }
 
 .reevit-modal__close {
@@ -344,14 +343,25 @@
 }
 
 .reevit-network-btn:hover {
-  border-color: var(--reevit-text-secondary);
-  background: var(--reevit-surface);
+  border-color: var(--reevit-text);
+  background: transparent;
+}
+
+.reevit-network-btn:focus {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
 }
 
 .reevit-network-btn--selected {
   border-color: var(--reevit-text);
   background: var(--reevit-text);
   color: var(--reevit-background);
+}
+
+.reevit-network-btn--selected:hover {
+  background: var(--reevit-text-secondary);
+  border-color: var(--reevit-text-secondary);
 }
 
 .reevit-momo-form__actions {
@@ -387,12 +397,25 @@
 
 .reevit-btn--primary {
   flex: 1;
-  background: var(--reevit-primary);
-  color: var(--reevit-primary-foreground);
+  background: oklch(1 0 0);
+  color: oklch(0.145 0 0);
+  border: 1px solid var(--reevit-border);
 }
 
 .reevit-btn--primary:hover:not(:disabled) {
-  background: var(--reevit-primary-hover);
+  background: oklch(0.97 0 0);
+  border-color: var(--reevit-text-secondary);
+}
+
+.reevit-btn--primary:focus:not(:disabled) {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
+}
+
+.reevit-btn--primary:active:not(:disabled) {
+  background: oklch(0.95 0 0);
+  transform: scale(0.98);
 }
 
 .reevit-btn--primary:disabled {
@@ -407,17 +430,23 @@
 }
 
 .reevit-btn--secondary:hover:not(:disabled) {
-  background: var(--reevit-surface);
-  border-color: var(--reevit-text-secondary);
+  background: transparent;
+  border-color: var(--reevit-text);
+}
+
+.reevit-btn--secondary:focus:not(:disabled) {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
 }
 
 .reevit-trigger-btn {
   padding: 10px 18px;
   font-size: 13px;
   font-weight: 600;
-  background: var(--reevit-primary);
-  color: var(--reevit-primary-foreground);
-  border: none;
+  background: oklch(1 0 0);
+  color: oklch(0.145 0 0);
+  border: 1px solid var(--reevit-border);
   border-radius: var(--reevit-radius);
   cursor: pointer;
   font-family: var(--reevit-font);
@@ -426,7 +455,39 @@
 }
 
 .reevit-trigger-btn:hover {
-  background: var(--reevit-primary-hover);
+  background: oklch(0.97 0 0);
+  border-color: var(--reevit-text-secondary);
+}
+
+.reevit-trigger-btn:focus {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
+}
+
+/* Dark mode button overrides */
+@media (prefers-color-scheme: dark) {
+  .reevit-btn--primary {
+    background: oklch(0.985 0 0);
+    color: oklch(0.145 0 0);
+  }
+  
+  .reevit-btn--primary:hover:not(:disabled) {
+    background: oklch(0.9 0 0);
+  }
+  
+  .reevit-btn--primary:active:not(:disabled) {
+    background: oklch(0.85 0 0);
+  }
+  
+  .reevit-trigger-btn {
+    background: oklch(0.985 0 0);
+    color: oklch(0.145 0 0);
+  }
+  
+  .reevit-trigger-btn:hover {
+    background: oklch(0.9 0 0);
+  }
 }
 
 /* ===== STATES ===== */

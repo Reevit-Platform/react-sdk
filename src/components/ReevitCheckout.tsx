@@ -283,7 +283,11 @@ export function ReevitCheckout({
             {/* Header */}
             <div className="reevit-modal__header">
               <div className="reevit-modal__branding">
-                <span className="reevit-modal__logo">Reevit</span>
+                <img
+                  src="https://i.imgur.com/bzUR5Lm.png"
+                  alt="Reevit"
+                  className="reevit-modal__logo"
+                />
               </div>
               <button
                 className="reevit-modal__close"
