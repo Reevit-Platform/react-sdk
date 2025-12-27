@@ -43,7 +43,6 @@ interface PaystackBridgeProps {
   amount: number;
   currency?: string;
   reference?: string;
-  accessCode?: string;
   metadata?: Record<string, unknown>;
   channels?: ('card' | 'bank' | 'ussd' | 'qr' | 'mobile_money' | 'bank_transfer')[];
   onSuccess: (result: PaymentResult) => void;
@@ -81,7 +80,6 @@ export function PaystackBridge({
   onError,
   onClose,
   autoStart = true,
-  accessCode, // Destructure accessCode
 }: PaystackBridgeProps) {
   const initialized = useRef(false);
 
@@ -93,44 +91,7 @@ export function PaystackBridge({
         throw new Error('Paystack not available');
       }
 
-      // Modern Paystack V2 API
-      const paystack = new (window.PaystackPop as any)();
-
-      if (accessCode) {
-        // If we have an access code from the server, use it to resume the transaction
-        paystack.resumeTransaction(accessCode, {
-          callback: (response: PaystackResponse) => {
-            const result: PaymentResult = {
-              paymentId: response.transaction,
-              reference: response.reference,
-              amount,
-              currency,
-              paymentMethod: 'card',
-              psp: 'paystack',
-              pspReference: response.trans,
-              status: response.status === 'success' ? 'success' : 'pending',
-              metadata: { trxref: response.trxref },
-            };
-            onSuccess(result);
-          },
-          onCancel: () => {
-            onClose();
-          },
-          onError: (err: any) => {
-            const error: PaymentError = {
-              code: 'PSP_ERROR',
-              message: err?.message || 'Paystack checkout error',
-              recoverable: true,
-              originalError: err,
-            };
-            onError(error);
-          }
-        });
-        return;
-      }
-
-      // Fallback to V1 setup if no accessCode (for client-side only flows)
-      const handler = (window.PaystackPop as any).setup({
+      const handler = window.PaystackPop.setup({
         key: publicKey,
         email,
         amount, // Paystack expects amount in kobo/pesewas (smallest unit)
