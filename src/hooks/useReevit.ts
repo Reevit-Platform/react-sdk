@@ -51,7 +51,13 @@ function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
     case 'INIT_START':
       return { ...state, status: 'loading', error: null };
     case 'INIT_SUCCESS':
-      return { ...state, status: 'ready', paymentIntent: action.payload };
+      return {
+        ...state,
+        status: 'ready',
+        paymentIntent: action.payload,
+        selectedMethod:
+          action.payload.availableMethods?.length === 1 ? action.payload.availableMethods[0] : state.selectedMethod,
+      };
     case 'INIT_ERROR':
       return { ...state, status: 'failed', error: action.payload };
     case 'SELECT_METHOD':
@@ -124,6 +130,10 @@ export function useReevit(options: UseReevitOptions) {
     ...initialState,
     status: config.initialPaymentIntent ? 'ready' : 'idle',
     paymentIntent: config.initialPaymentIntent || null,
+    selectedMethod:
+      config.initialPaymentIntent?.availableMethods?.length === 1
+        ? config.initialPaymentIntent.availableMethods[0]
+        : null,
   });
 
   // Create API client ref (stable across re-renders)
@@ -134,9 +144,11 @@ export function useReevit(options: UseReevitOptions) {
 
   // Update state if config.initialPaymentIntent changes
   useEffect(() => {
-    if (config.initialPaymentIntent && (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id)) {
-      dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
-      initializingRef.current = true;
+    if (config.initialPaymentIntent) {
+      if (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id) {
+        dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
+        initializingRef.current = true;
+      }
     }
   }, [config.initialPaymentIntent, state.paymentIntent?.id]);
 
@@ -265,12 +277,19 @@ export function useReevit(options: UseReevitOptions) {
           psp: state.paymentIntent.recommendedPsp,
           pspReference: (paymentData.pspReference as string) ||
             (data?.provider_ref_id as string) || '',
-          status: 'success',
+          status: data?.status === 'succeeded' ? 'success' : 'pending',
           metadata: paymentData,
         };
 
-        dispatch({ type: 'PROCESS_SUCCESS', payload: result });
-        onSuccess?.(result);
+        if (result.status === 'success') {
+          dispatch({ type: 'PROCESS_SUCCESS', payload: result });
+          onSuccess?.(result);
+        } else {
+          // If still pending, we might want to stay in processing or show a specific message
+          // For now, let's treat it as success if the PSP reported success but backend is still syncing
+          dispatch({ type: 'PROCESS_SUCCESS', payload: result });
+          onSuccess?.(result);
+        }
       } catch (err) {
         const error: PaymentError = {
           code: 'PAYMENT_FAILED',
