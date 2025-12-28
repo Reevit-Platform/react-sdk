@@ -19,6 +19,7 @@ interface PaystackPopupInterface {
 interface PaystackConfig {
   key: string;
   email: string;
+  phone?: string;
   amount: number;
   currency?: string;
   ref?: string;
@@ -40,6 +41,7 @@ interface PaystackResponse {
 interface PaystackBridgeProps {
   publicKey: string;
   email: string;
+  phone?: string;
   amount: number;
   currency?: string;
   reference?: string;
@@ -71,6 +73,7 @@ function loadPaystackScript(): Promise<void> {
 export function PaystackBridge({
   publicKey,
   email,
+  phone,
   amount,
   currency = 'GHS',
   reference,
@@ -105,18 +108,27 @@ export function PaystackBridge({
       const handler = window.PaystackPop.setup({
         key: publicKey,
         email,
+        phone,
         amount, // Paystack expects amount in kobo/pesewas (smallest unit)
         currency,
         ref: reference,
         metadata,
         channels,
         callback: (response: PaystackResponse) => {
+          // Determine the payment method used
+          let usedMethod: any = 'card';
+          if (channels && channels.length === 1) {
+            usedMethod = channels[0];
+          } else if (response.message?.toLowerCase().includes('mobile money')) {
+            usedMethod = 'mobile_money';
+          }
+
           const result: PaymentResult = {
             paymentId: response.transaction,
             reference: response.reference,
             amount,
             currency,
-            paymentMethod: 'card', // Paystack handles this internally
+            paymentMethod: usedMethod,
             psp: 'paystack',
             pspReference: response.trans,
             status: response.status === 'success' ? 'success' : 'pending',
