@@ -38,6 +38,7 @@ export function ReevitCheckout({
   reference,
   metadata,
   paymentMethods = ['card', 'mobile_money'],
+  initialPaymentIntent,
   // Callbacks
   onSuccess,
   onError,
@@ -82,7 +83,17 @@ export function ReevitCheckout({
     isLoading,
     isComplete,
   } = useReevit({
-    config: { publicKey, amount, currency, email, phone, reference, metadata, paymentMethods },
+    config: {
+      publicKey,
+      amount,
+      currency,
+      email,
+      phone,
+      reference,
+      metadata,
+      paymentMethods,
+      initialPaymentIntent,
+    },
     apiBaseUrl,
     onSuccess: (result) => {
       onSuccess?.(result);
@@ -101,10 +112,25 @@ export function ReevitCheckout({
 
   // Initialize when opened
   useEffect(() => {
-    if (isOpen && status === 'idle') {
+    // Only initialize if opened and NOT in controlled mode with an initial intent
+    if (isOpen && status === 'idle' && !initialPaymentIntent) {
       initialize();
     }
-  }, [isOpen, status, initialize]);
+  }, [isOpen, status, initialize, initialPaymentIntent]);
+
+  // Handle auto-advance logic
+  useEffect(() => {
+    if (isOpen && (selectedMethod === 'card' || selectedMethod === 'mobile_money') && !showPSPBridge) {
+      // For card, auto-advance if we have an intent
+      if (selectedMethod === 'card' && paymentIntent) {
+        setShowPSPBridge(true);
+      }
+      // For MoMo, auto-advance only if we have an intent AND a phone number
+      else if (selectedMethod === 'mobile_money' && paymentIntent && (momoData?.phone || phone)) {
+        setShowPSPBridge(true);
+      }
+    }
+  }, [isOpen, selectedMethod, showPSPBridge, paymentIntent, momoData, phone]);
 
   // Open modal
   const handleOpen = useCallback(() => {
@@ -181,15 +207,19 @@ export function ReevitCheckout({
   const themeStyles = theme ? createThemeVariables(theme as unknown as Record<string, string | undefined>) : {};
 
   // Render trigger
+  // If in controlled mode (isOpen is provided), we don't attach an onClick to children
+  // because the parent controls when the modal opens (usually after an API call).
+  const isControlled = controlledIsOpen !== undefined;
+
   const trigger = children ? (
-    <span onClick={handleOpen} role="button" tabIndex={0}>
+    <span onClick={isControlled ? undefined : handleOpen} role={isControlled ? undefined : "button"} tabIndex={isControlled ? undefined : 0}>
       {children}
     </span>
-  ) : (
+  ) : !isControlled ? (
     <button className="reevit-trigger-btn" onClick={handleOpen}>
       Pay {formatAmount(amount, currency)}
     </button>
-  );
+  ) : null;
 
   // Render content based on state
   const renderContent = () => {
@@ -236,6 +266,7 @@ export function ReevitCheckout({
         <PaystackBridge
           publicKey={pspKey}
           email={email}
+          phone={momoData?.phone || phone}
           amount={paymentIntent?.amount ?? amount}
           currency={paymentIntent?.currency ?? currency}
           reference={reference}
@@ -245,6 +276,7 @@ export function ReevitCheckout({
             // This ensures Paystack webhook includes the correct ID to find the payment
             payment_id: paymentIntent?.id,
             connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
+            customer_phone: momoData?.phone || phone,
           }}
           channels={selectedMethod === 'mobile_money' ? ['mobile_money'] : ['card']}
           onSuccess={handlePSPSuccess}
