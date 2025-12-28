@@ -125,6 +125,9 @@ export function useReevit(options: UseReevitOptions) {
   // Create API client ref (stable across re-renders)
   const apiClientRef = useRef<ReevitAPIClient | null>(null);
 
+  // Guard against duplicate initialize() calls (React StrictMode)
+  const initializingRef = useRef(false);
+
   // Initialize API client
   if (!apiClientRef.current) {
     apiClientRef.current = new ReevitAPIClient({
@@ -141,11 +144,18 @@ export function useReevit(options: UseReevitOptions) {
   // Initialize payment intent
   const initialize = useCallback(
     async (method?: PaymentMethod) => {
+      // Guard against duplicate calls (especially in React StrictMode)
+      if (initializingRef.current) {
+        return;
+      }
+      initializingRef.current = true;
+
       dispatch({ type: 'INIT_START' });
 
       try {
         const apiClient = apiClientRef.current;
         if (!apiClient) {
+          initializingRef.current = false;
           throw new Error('API client not initialized');
         }
 
@@ -179,6 +189,7 @@ export function useReevit(options: UseReevitOptions) {
           };
           dispatch({ type: 'INIT_ERROR', payload: noDataError });
           onError?.(noDataError);
+          initializingRef.current = false;
           return;
         }
 
@@ -186,6 +197,7 @@ export function useReevit(options: UseReevitOptions) {
         const paymentIntent = mapToPaymentIntent(data, { ...config, reference });
 
         dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
+        // Don't reset initializingRef here - once initialized, stay initialized until reset()
       } catch (err) {
         const error: PaymentError = {
           code: 'INIT_FAILED',
@@ -195,6 +207,7 @@ export function useReevit(options: UseReevitOptions) {
         };
         dispatch({ type: 'INIT_ERROR', payload: error });
         onError?.(error);
+        initializingRef.current = false;
       }
     },
     [config, onError, apiBaseUrl]
@@ -279,6 +292,7 @@ export function useReevit(options: UseReevitOptions) {
 
   // Reset checkout
   const reset = useCallback(() => {
+    initializingRef.current = false;
     dispatch({ type: 'RESET' });
   }, []);
 
