@@ -26,6 +26,8 @@ export interface ReevitCheckoutConfig {
   metadata?: Record<string, unknown>;
   /** Payment methods to display */
   paymentMethods?: PaymentMethod[];
+  /** Optional existing payment intent to use instead of creating a new one */
+  initialPaymentIntent?: PaymentIntent;
 }
 
 // Checkout callbacks
@@ -46,6 +48,10 @@ export interface ReevitCheckoutProps extends ReevitCheckoutConfig, ReevitCheckou
   children?: React.ReactNode;
   /** Whether to open automatically */
   autoOpen?: boolean;
+  /** Controlled open state */
+  isOpen?: boolean;
+  /** Callback for open state changes */
+  onOpenChange?: (isOpen: boolean) => void;
   /** Custom theme */
   theme?: ReevitTheme;
   /** Custom API base URL (for testing or self-hosted deployments) */

@@ -46,10 +46,25 @@ export function ReevitCheckout({
   // UI
   children,
   autoOpen = false,
+  isOpen: controlledIsOpen,
+  onOpenChange,
   theme,
   apiBaseUrl,
 }: ReevitCheckoutProps) {
-  const [isOpen, setIsOpen] = useState(autoOpen);
+  const [internalIsOpen, setInternalIsOpen] = useState(autoOpen);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  const setIsOpen = useCallback(
+    (value: boolean) => {
+      if (onOpenChange) {
+        onOpenChange(value);
+      } else {
+        setInternalIsOpen(value);
+      }
+    },
+    [onOpenChange]
+  );
+
   const [showPSPBridge, setShowPSPBridge] = useState(false);
   const [momoData, setMomoData] = useState<MobileMoneyFormData | null>(null);
 
@@ -93,10 +108,11 @@ export function ReevitCheckout({
 
   // Open modal
   const handleOpen = useCallback(() => {
+    if (controlledIsOpen !== undefined) return; // Don't auto-open if controlled
     setIsOpen(true);
     setShowPSPBridge(false);
     setMomoData(null);
-  }, []);
+  }, [controlledIsOpen, setIsOpen]);
 
   // Close modal
   const handleClose = useCallback(() => {
@@ -104,7 +120,7 @@ export function ReevitCheckout({
     setIsOpen(false);
     setShowPSPBridge(false);
     setMomoData(null);
-  }, [closeCheckout]);
+  }, [closeCheckout, setIsOpen]);
 
   // Handle payment method selection
   const handleMethodSelect = useCallback(

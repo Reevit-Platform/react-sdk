@@ -120,13 +120,25 @@ function mapToPaymentIntent(
 
 export function useReevit(options: UseReevitOptions) {
   const { config, onSuccess, onError, onClose, onStateChange, apiBaseUrl } = options;
-  const [state, dispatch] = useReducer(reevitReducer, initialState);
+  const [state, dispatch] = useReducer(reevitReducer, {
+    ...initialState,
+    status: config.initialPaymentIntent ? 'ready' : 'idle',
+    paymentIntent: config.initialPaymentIntent || null,
+  });
 
   // Create API client ref (stable across re-renders)
   const apiClientRef = useRef<ReevitAPIClient | null>(null);
 
   // Guard against duplicate initialize() calls (React StrictMode)
-  const initializingRef = useRef(false);
+  const initializingRef = useRef(!!config.initialPaymentIntent);
+
+  // Update state if config.initialPaymentIntent changes
+  useEffect(() => {
+    if (config.initialPaymentIntent && (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id)) {
+      dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
+      initializingRef.current = true;
+    }
+  }, [config.initialPaymentIntent, state.paymentIntent?.id]);
 
   // Initialize API client
   if (!apiClientRef.current) {
