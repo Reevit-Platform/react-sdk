@@ -85,10 +85,21 @@ export function PaystackBridge({
 
   const startPayment = useCallback(async () => {
     try {
+      // Validate required parameters before attempting to load Paystack
+      if (!publicKey) {
+        throw new Error('Paystack public key is required but was empty');
+      }
+      if (!email) {
+        throw new Error('Email is required for Paystack payments');
+      }
+      if (!amount || amount <= 0) {
+        throw new Error('Valid amount is required for Paystack payments');
+      }
+
       await loadPaystackScript();
 
       if (!window.PaystackPop) {
-        throw new Error('Paystack not available');
+        throw new Error('Paystack script loaded but PaystackPop not available');
       }
 
       const handler = window.PaystackPop.setup({
@@ -120,9 +131,10 @@ export function PaystackBridge({
 
       handler.openIframe();
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize Paystack';
       const error: PaymentError = {
         code: 'PSP_ERROR',
-        message: 'Failed to initialize Paystack',
+        message: errorMessage,
         recoverable: true,
         originalError: err,
       };
