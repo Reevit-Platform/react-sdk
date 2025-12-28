@@ -13,6 +13,7 @@ export interface CreatePaymentIntentRequest {
   method: string;
   country: string;
   customer_id?: string;
+  phone?: string;
   metadata?: Record<string, unknown>;
   description?: string;
   policy?: {
@@ -222,6 +223,7 @@ export class ReevitAPIClient {
       method: this.mapPaymentMethod(method),
       country,
       customer_id: config.email || (config.metadata?.customerId as string | undefined),
+      phone: config.phone,
       metadata,
     };
 
