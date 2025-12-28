@@ -220,10 +220,16 @@ export function ReevitCheckout({
         <PaystackBridge
           publicKey={pspKey}
           email={email}
-          amount={amount}
-          currency={currency}
+          amount={paymentIntent?.amount ?? amount}
+          currency={paymentIntent?.currency ?? currency}
           reference={reference}
-          metadata={metadata}
+          metadata={{
+            ...metadata,
+            // Override with correct payment intent ID for webhook routing
+            // This ensures Paystack webhook includes the correct ID to find the payment
+            payment_id: paymentIntent?.id,
+            connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
+          }}
           channels={selectedMethod === 'mobile_money' ? ['mobile_money'] : ['card']}
           onSuccess={handlePSPSuccess}
           onError={handlePSPError}
