@@ -120,13 +120,14 @@ export function ReevitCheckout({
 
   // Handle auto-advance logic
   useEffect(() => {
-    if (isOpen && (selectedMethod === 'card' || selectedMethod === 'mobile_money') && !showPSPBridge) {
+    // Only auto-advance if we have a selected method AND an intent
+    if (isOpen && selectedMethod && paymentIntent && !showPSPBridge) {
       // For card, auto-advance if we have an intent
-      if (selectedMethod === 'card' && paymentIntent) {
+      if (selectedMethod === 'card') {
         setShowPSPBridge(true);
       }
       // For MoMo, auto-advance only if we have an intent AND a phone number
-      else if (selectedMethod === 'mobile_money' && paymentIntent && (momoData?.phone || phone)) {
+      else if (selectedMethod === 'mobile_money' && (momoData?.phone || phone)) {
         setShowPSPBridge(true);
       }
     }

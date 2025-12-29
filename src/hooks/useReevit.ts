@@ -56,7 +56,7 @@ function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
         status: 'ready',
         paymentIntent: action.payload,
         selectedMethod:
-          action.payload.availableMethods?.length === 1 ? action.payload.availableMethods[0] : state.selectedMethod,
+          action.payload.availableMethods?.length === 1 ? action.payload.availableMethods[0] : null,
       };
     case 'INIT_ERROR':
       return { ...state, status: 'failed', error: action.payload };
