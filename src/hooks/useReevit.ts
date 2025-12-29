@@ -115,6 +115,7 @@ function mapToPaymentIntent(
     status: response.status as 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled',
     recommendedPsp: mapProviderToPsp(response.provider),
     availableMethods: config.paymentMethods || ['card', 'mobile_money'],
+    reference: response.reference || response.id, // Use backend reference or fallback to ID
     connectionId: response.connection_id,
     provider: response.provider,
     feeAmount: response.fee_amount,
@@ -258,9 +259,14 @@ export function useReevit(options: UseReevitOptions) {
         }
 
         // Confirm the payment with the backend
-        const { data, error } = await apiClient.confirmPayment(state.paymentIntent.id);
+        // If we have a clientSecret, use the public confirm-intent endpoint
+        const clientSecret = state.paymentIntent.clientSecret;
+        const { data, error } = clientSecret
+          ? await apiClient.confirmPaymentIntent(state.paymentIntent.id, clientSecret)
+          : await apiClient.confirmPayment(state.paymentIntent.id);
 
         if (error) {
+          console.error('[useReevit] Confirmation error:', error);
           dispatch({ type: 'PROCESS_ERROR', payload: error });
           onError?.(error);
           return;
@@ -278,15 +284,17 @@ export function useReevit(options: UseReevitOptions) {
           pspReference: (paymentData.pspReference as string) ||
             (data?.provider_ref_id as string) || '',
           status: data?.status === 'succeeded' ? 'success' : 'pending',
-          metadata: paymentData,
+          metadata: { ...paymentData, backend_status: data?.status },
         };
+
+        console.log('[useReevit] Process result:', result);
 
         if (result.status === 'success') {
           dispatch({ type: 'PROCESS_SUCCESS', payload: result });
           onSuccess?.(result);
         } else {
-          // If still pending, we might want to stay in processing or show a specific message
-          // For now, let's treat it as success if the PSP reported success but backend is still syncing
+          // If still pending but PSP reported success, we treat it as success for the UI
+          // but we can pass the real status in metadata
           dispatch({ type: 'PROCESS_SUCCESS', payload: result });
           onSuccess?.(result);
         }
