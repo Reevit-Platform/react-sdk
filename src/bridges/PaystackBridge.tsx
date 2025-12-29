@@ -20,9 +20,10 @@ interface PaystackConfig {
   key: string;
   email: string;
   phone?: string;
-  amount: number;
+  amount?: number;
   currency?: string;
   ref?: string;
+  access_code?: string;
   metadata?: Record<string, unknown>;
   channels?: string[];
   callback: (response: PaystackResponse) => void;
@@ -45,6 +46,7 @@ interface PaystackBridgeProps {
   amount: number;
   currency?: string;
   reference?: string;
+  accessCode?: string;
   metadata?: Record<string, unknown>;
   channels?: ('card' | 'bank' | 'ussd' | 'qr' | 'mobile_money' | 'bank_transfer')[];
   onSuccess: (result: PaymentResult) => void;
@@ -77,6 +79,7 @@ export function PaystackBridge({
   amount,
   currency = 'GHS',
   reference,
+  accessCode,
   metadata,
   channels = ['card', 'mobile_money'],
   onSuccess,
@@ -88,15 +91,23 @@ export function PaystackBridge({
 
   const startPayment = useCallback(async () => {
     try {
+      console.log('[PaystackBridge] Starting payment', {
+        hasPublicKey: !!publicKey,
+        email,
+        amount,
+        reference,
+        hasAccessCode: !!accessCode,
+      });
+
       // Validate required parameters before attempting to load Paystack
       if (!publicKey) {
         throw new Error('Paystack public key is required but was empty');
       }
-      if (!email) {
-        throw new Error('Email is required for Paystack payments');
+      if (!email && !accessCode) {
+        throw new Error('Email is required for Paystack payments when no access code is provided');
       }
-      if (!amount || amount <= 0) {
-        throw new Error('Valid amount is required for Paystack payments');
+      if (!amount && !accessCode) {
+        throw new Error('Valid amount is required for Paystack payments when no access code is provided');
       }
 
       await loadPaystackScript();
@@ -105,16 +116,18 @@ export function PaystackBridge({
         throw new Error('Paystack script loaded but PaystackPop not available');
       }
 
-      const handler = window.PaystackPop.setup({
+      const setupConfig: PaystackConfig = {
         key: publicKey,
         email,
         phone,
-        amount, // Paystack expects amount in kobo/pesewas (smallest unit)
+        amount,
         currency,
         ref: reference,
+        access_code: accessCode,
         metadata,
         channels,
         callback: (response: PaystackResponse) => {
+          console.log('[PaystackBridge] Callback received', response);
           // Determine the payment method used
           let usedMethod: any = 'card';
           if (channels && channels.length === 1) {
@@ -124,22 +137,30 @@ export function PaystackBridge({
           }
 
           const result: PaymentResult = {
-            paymentId: response.transaction,
+            paymentId: response.reference, // Use the reference as paymentId because we set it to Reevit's UUID
             reference: response.reference,
             amount,
             currency,
             paymentMethod: usedMethod,
             psp: 'paystack',
-            pspReference: response.trans,
+            pspReference: response.transaction, // Paystack's internal transaction ID
             status: response.status === 'success' ? 'success' : 'pending',
-            metadata: { trxref: response.trxref },
+            metadata: {
+              ...response,
+              trxref: response.trxref,
+              paystack_transaction_id: response.transaction,
+              paystack_trans: response.trans
+            },
           };
           onSuccess(result);
         },
         onClose: () => {
+          console.log('[PaystackBridge] Modal closed');
           onClose();
         },
-      });
+      };
+
+      const handler = window.PaystackPop.setup(setupConfig);
 
       handler.openIframe();
     } catch (err) {
@@ -152,7 +173,7 @@ export function PaystackBridge({
       };
       onError(error);
     }
-  }, [publicKey, email, amount, currency, reference, metadata, channels, onSuccess, onError, onClose]);
+  }, [publicKey, email, amount, currency, reference, accessCode, metadata, channels, onSuccess, onError, onClose]);
 
   useEffect(() => {
     if (autoStart && !initialized.current) {
