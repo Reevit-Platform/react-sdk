@@ -37,6 +37,7 @@ export interface PaymentIntentResponse {
   fee_amount: number;
   fee_currency: string;
   net_amount: number;
+  reference?: string;
 }
 
 export interface ConfirmPaymentRequest {
@@ -238,7 +239,14 @@ export class ReevitAPIClient {
   }
 
   /**
-   * Confirms a payment after PSP callback
+   * Confirms a payment intent after PSP callback (public endpoint)
+   */
+  async confirmPaymentIntent(paymentId: string, clientSecret: string): Promise<{ data?: PaymentDetailResponse; error?: PaymentError }> {
+    return this.request<PaymentDetailResponse>('POST', `/v1/payments/${paymentId}/confirm-intent?client_secret=${clientSecret}`);
+  }
+
+  /**
+   * Confirms a payment after PSP callback (authenticated endpoint)
    */
   async confirmPayment(paymentId: string): Promise<{ data?: PaymentDetailResponse; error?: PaymentError }> {
     return this.request<PaymentDetailResponse>('POST', `/v1/payments/${paymentId}/confirm`);
