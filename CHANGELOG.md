@@ -1,3 +1,35 @@
+# @reevit/react v0.3.2
+
+**Release Date:** December 29, 2025
+
+## 🐛 Bug Fixes
+
+### Fixed: Payment Method Selector Bypass
+
+Resolved an issue where the `ReevitCheckout` component would bypass the payment method selection screen and auto-select 'card' when an `initialPaymentIntent` was provided. This fix ensures:
+- The `ReevitCheckout` popup now correctly displays the payment method selector (e.g., Card, Mobile Money) when multiple options are available.
+- The auto-advance logic is less aggressive, allowing users to make their selection within the popup.
+- `useReevit` no longer auto-selects a method if more than one is available in the `initialPaymentIntent`.
+
+## 📦 Install / Upgrade
+
+```bash
+npm install @reevit/react@0.3.2
+# or
+yarn add @reevit/react@0.3.2
+# or
+pnpm add @reevit/react@0.3.2
+```
+
+## ⚠️ Breaking Changes
+
+None. This is a backwards-compatible release.
+
+## Full Changelog
+
+- `b5eca56` - fix: Restore payment method selector in ReevitCheckout
+- `38ae223` - chore: Bump version to 0.3.2
+
 # @reevit/react v0.3.0
 
 **Release Date:** December 28, 2024
