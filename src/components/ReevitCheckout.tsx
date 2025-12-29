@@ -224,11 +224,11 @@ export function ReevitCheckout({
   // Render content based on state
   const renderContent = () => {
     // Loading state
-    if (status === 'loading') {
+    if (status === 'loading' || status === 'processing') {
       return (
         <div className="reevit-loading">
           <div className="reevit-spinner" />
-          <p>Preparing checkout...</p>
+          <p>{status === 'loading' ? 'Preparing checkout...' : 'Processing payment...'}</p>
         </div>
       );
     }
@@ -270,6 +270,7 @@ export function ReevitCheckout({
           amount={paymentIntent?.amount ?? amount}
           currency={paymentIntent?.currency ?? currency}
           reference={reference}
+          accessCode={paymentIntent?.clientSecret}
           metadata={{
             ...metadata,
             // Override with correct payment intent ID for webhook routing
