@@ -142,7 +142,7 @@ export class ReevitAPIClient {
       'Content-Type': 'application/json',
       'X-Reevit-Key': this.publicKey,
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.2.5',
+      'X-Reevit-Client-Version': '0.3.2',
     };
 
     // Add idempotency key for mutating requests
