@@ -163,6 +163,8 @@ export interface PaymentIntent {
   recommendedPsp: 'paystack' | 'hubtel' | 'flutterwave';
   /** Available payment methods for this intent */
   availableMethods: PaymentMethod[];
+  /** Reference provided or generated */
+  reference?: string;
   /** Connection ID (from Reevit backend) */
   connectionId?: string;
   /** Provider name (from backend) */
