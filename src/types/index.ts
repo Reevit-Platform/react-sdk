@@ -1,17 +1,7 @@
-/**
- * Reevit React SDK Types
- * Core type definitions for the unified payment widget
- */
+import type { ReactNode } from 'react';
 
 /** Minimal ReactNode-compatible type to avoid hard dependency on @types/react */
-type ReevitReactNode =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Array<ReevitReactNode>
-  | { props?: any; type?: any };
+export type ReevitReactNode = ReactNode;
 
 // Payment method types
 export type PaymentMethod = 'card' | 'mobile_money' | 'bank_transfer';
