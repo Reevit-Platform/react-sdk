@@ -3,10 +3,23 @@
  * Core type definitions for the unified payment widget
  */
 
+/** Minimal ReactNode-compatible type to avoid hard dependency on @types/react */
+type ReevitReactNode =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Array<ReevitReactNode>
+  | { props?: any; type?: any };
+
 // Payment method types
 export type PaymentMethod = 'card' | 'mobile_money' | 'bank_transfer';
 
 export type MobileMoneyNetwork = 'mtn' | 'vodafone' | 'airteltigo';
+
+/** Payment source type - indicates where the payment originated from */
+export type PaymentSource = 'payment_link' | 'api' | 'subscription';
 
 // Checkout configuration
 export interface ReevitCheckoutConfig {
@@ -45,7 +58,7 @@ export interface ReevitCheckoutCallbacks {
 // Combined props for ReevitCheckout component
 export interface ReevitCheckoutProps extends ReevitCheckoutConfig, ReevitCheckoutCallbacks {
   /** Custom trigger element */
-  children?: React.ReactNode;
+  children?: ReevitReactNode;
   /** Whether to open automatically */
   autoOpen?: boolean;
   /** Controlled open state */
@@ -89,6 +102,12 @@ export interface PaymentResult {
   status: 'success' | 'pending';
   /** Any additional data from the PSP */
   metadata?: Record<string, unknown>;
+  /** Payment source type (payment_link, api, subscription) */
+  source?: PaymentSource;
+  /** ID of the source (payment link ID, subscription ID, etc.) */
+  sourceId?: string;
+  /** Human-readable description of the source (e.g., payment link name) */
+  sourceDescription?: string;
 }
 
 // Payment error

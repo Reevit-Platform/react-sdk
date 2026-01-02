@@ -57,6 +57,7 @@ export type {
   ReevitTheme,
   MobileMoneyFormData,
   PaymentIntent,
+  PaymentSource,
 } from './types';
 
 // Utils

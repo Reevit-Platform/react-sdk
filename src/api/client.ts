@@ -62,6 +62,12 @@ export interface PaymentDetailResponse {
   metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  /** Payment source type (payment_link, api, subscription) */
+  source?: 'payment_link' | 'api' | 'subscription';
+  /** ID of the source (payment link ID, subscription ID, etc.) */
+  source_id?: string;
+  /** Human-readable description of the source (e.g., payment link name) */
+  source_description?: string;
 }
 
 export interface APIErrorResponse {
