@@ -22,9 +22,9 @@ export {
   MonnifyBridge,
   MPesaBridge,
   useMPesaStatusPolling,
-  // Script loaders
+  // Script loaders (Hubtel no longer needs one - uses npm package)
   loadPaystackScript,
-  loadHubtelScript,
+  openHubtelPopup,
   loadFlutterwaveScript,
   loadStripeScript,
   loadMonnifyScript,

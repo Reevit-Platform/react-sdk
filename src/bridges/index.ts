@@ -2,7 +2,7 @@
 export { PaystackBridge, loadPaystackScript } from './PaystackBridge';
 
 // Hubtel
-export { HubtelBridge, loadHubtelScript } from './HubtelBridge';
+export { HubtelBridge, openHubtelPopup } from './HubtelBridge';
 
 // Flutterwave
 export { FlutterwaveBridge, loadFlutterwaveScript } from './FlutterwaveBridge';

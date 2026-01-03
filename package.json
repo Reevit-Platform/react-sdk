@@ -1,6 +1,6 @@
 {
   "name": "@reevit/react",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Reevit React SDK - Unified Payment Widget",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -23,6 +23,9 @@
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hubteljs/checkout": "^1.0.4"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

@@ -1,129 +1,95 @@
 /**
  * Hubtel Bridge
- * Handles integration with Hubtel payment popup
+ * Handles integration with Hubtel payment using @hubteljs/checkout npm package
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import CheckoutSdk from '@hubteljs/checkout';
 import type { PaymentResult, PaymentError } from '../types';
 
-declare global {
-  interface Window {
-    HubtelCheckout?: HubtelCheckoutInterface;
-  }
-}
-
-interface HubtelCheckoutInterface {
-  initPayment: (config: HubtelConfig) => void;
-}
-
-interface HubtelConfig {
-  merchantAccount: string;
-  basicDescription: string;
-  totalAmount: number;
-  currency: string;
-  clientReference: string;
-  customerEmail?: string;
-  customerMsisdn?: string;
-  callbackUrl?: string;
-  onComplete?: (response: HubtelResponse) => void;
-  onCancel?: () => void;
-}
-
-interface HubtelResponse {
-  status: 'Success' | 'Failed' | 'Cancelled';
-  transactionId: string;
-  clientReference: string;
-  amount: number;
-  currency: string;
-  message?: string;
-}
-
 interface HubtelBridgeProps {
-  merchantAccount: string;
+  merchantAccount: string | number;
   amount: number;
   currency?: string;
   reference?: string;
   email?: string;
   phone?: string;
   description?: string;
+  callbackUrl?: string;
+  basicAuth?: string;
   onSuccess: (result: PaymentResult) => void;
   onError: (error: PaymentError) => void;
   onClose: () => void;
   autoStart?: boolean;
 }
 
-// Load Hubtel script
-function loadHubtelScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.HubtelCheckout) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://checkout-v3.hubtel.com/js/checkout.js';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Hubtel script'));
-    document.head.appendChild(script);
-  });
-}
-
 export function HubtelBridge({
   merchantAccount,
   amount,
-  currency = 'GHS',
   reference,
-  email,
   phone,
   description = 'Payment',
+  callbackUrl,
+  basicAuth,
   onSuccess,
   onError,
   onClose,
   autoStart = true,
 }: HubtelBridgeProps) {
   const initialized = useRef(false);
+  const checkoutRef = useRef<InstanceType<typeof CheckoutSdk> | null>(null);
 
   const startPayment = useCallback(async () => {
     try {
-      await loadHubtelScript();
+      // Initialize the Checkout SDK
+      const checkout = new CheckoutSdk();
+      checkoutRef.current = checkout;
 
-      if (!window.HubtelCheckout) {
-        throw new Error('Hubtel checkout not available');
-      }
-
-      window.HubtelCheckout.initPayment({
-        merchantAccount,
-        basicDescription: description,
-        totalAmount: amount / 100, // Hubtel expects amount in major units (GHS, not pesewas)
-        currency,
+      const purchaseInfo = {
+        amount: amount / 100, // Convert from minor to major units
+        purchaseDescription: description,
+        customerPhoneNumber: phone || '',
         clientReference: reference || `hubtel_${Date.now()}`,
-        customerEmail: email,
-        customerMsisdn: phone,
-        onComplete: (response: HubtelResponse) => {
-          if (response.status === 'Success') {
+      };
+
+      const config = {
+        branding: 'enabled' as const,
+        callbackUrl: callbackUrl || window.location.href,
+        merchantAccount: typeof merchantAccount === 'string' ? parseInt(merchantAccount, 10) : merchantAccount,
+        basicAuth: basicAuth || '',
+      };
+
+      checkout.openModal({
+        purchaseInfo,
+        config,
+        callBacks: {
+          onInit: () => console.log('Hubtel checkout initialized'),
+          onPaymentSuccess: (data: any) => {
             const result: PaymentResult = {
-              paymentId: response.transactionId,
-              reference: response.clientReference,
-              amount: Math.round(response.amount * 100), // Convert back to pesewas
-              currency: response.currency,
+              paymentId: (data.transactionId as string) || reference || '',
+              reference: (data.clientReference as string) || reference || '',
+              amount: amount,
+              currency: 'GHS',
               paymentMethod: 'mobile_money',
               psp: 'hubtel',
-              pspReference: response.transactionId,
+              pspReference: (data.transactionId as string) || '',
               status: 'success',
             };
             onSuccess(result);
-          } else {
+            checkout.closePopUp();
+          },
+          onPaymentFailure: (data: any) => {
             const error: PaymentError = {
               code: 'PAYMENT_FAILED',
-              message: response.message || 'Payment failed',
+              message: (data.message as string) || 'Payment failed',
               recoverable: true,
             };
             onError(error);
-          }
-        },
-        onCancel: () => {
-          onClose();
+          },
+          onLoad: () => console.log('Hubtel checkout loaded'),
+          onClose: () => {
+            onClose();
+          },
         },
       });
     } catch (err) {
@@ -135,7 +101,7 @@ export function HubtelBridge({
       };
       onError(error);
     }
-  }, [merchantAccount, amount, currency, reference, email, phone, description, onSuccess, onError, onClose]);
+  }, [merchantAccount, amount, reference, phone, description, callbackUrl, basicAuth, onSuccess, onError, onClose]);
 
   useEffect(() => {
     if (autoStart && !initialized.current) {
@@ -154,4 +120,54 @@ export function HubtelBridge({
   );
 }
 
-export { loadHubtelScript };
+/**
+ * Opens Hubtel checkout modal directly
+ * Uses the @hubteljs/checkout npm package
+ */
+export function openHubtelPopup(config: {
+  merchantAccount: string | number;
+  description: string;
+  amount: number;
+  clientReference?: string;
+  callbackUrl?: string;
+  customerPhoneNumber?: string;
+  basicAuth?: string;
+  onSuccess?: (data: Record<string, unknown>) => void;
+  onError?: (data: Record<string, unknown>) => void;
+  onClose?: () => void;
+}): void {
+  const checkout = new CheckoutSdk();
+
+  const purchaseInfo = {
+    amount: config.amount,
+    purchaseDescription: config.description,
+    customerPhoneNumber: config.customerPhoneNumber || '',
+    clientReference: config.clientReference || `hubtel_${Date.now()}`,
+  };
+
+  const checkoutConfig = {
+    branding: 'enabled' as const,
+    callbackUrl: config.callbackUrl || window.location.href,
+    merchantAccount: typeof config.merchantAccount === 'string'
+      ? parseInt(config.merchantAccount, 10)
+      : config.merchantAccount,
+    basicAuth: config.basicAuth || '',
+  };
+
+  checkout.openModal({
+    purchaseInfo,
+    config: checkoutConfig,
+    callBacks: {
+      onPaymentSuccess: (data: any) => {
+        config.onSuccess?.(data);
+        checkout.closePopUp();
+      },
+      onPaymentFailure: (data: any) => {
+        config.onError?.(data);
+      },
+      onClose: () => {
+        config.onClose?.();
+      },
+    },
+  });
+}
