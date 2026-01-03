@@ -304,13 +304,14 @@ export function ReevitCheckout({
         case 'hubtel':
           return (
             <HubtelBridge
-              merchantAccount={pspKey}
+              merchantAccount={paymentIntent?.pspCredentials?.merchantAccount || pspKey}
               amount={paymentIntent?.amount ?? amount}
               currency={paymentIntent?.currency ?? currency}
               reference={paymentIntent?.reference || reference}
               email={email}
               phone={momoData?.phone || phone}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
+              basicAuth={paymentIntent?.pspCredentials?.basicAuth}
               onSuccess={handlePSPSuccess}
               onError={(err: PaymentError) => handlePSPError(err)}
               onClose={handlePSPClose}
