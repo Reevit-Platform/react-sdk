@@ -90,14 +90,18 @@ interface UseReevitOptions {
 /**
  * Maps PSP provider names from backend to PSP type used by bridges
  */
-function mapProviderToPsp(provider: string): 'paystack' | 'hubtel' | 'flutterwave' {
+function mapProviderToPsp(provider: string): 'paystack' | 'hubtel' | 'flutterwave' | 'monnify' | 'mpesa' | 'stripe' {
   const providerLower = provider.toLowerCase();
   if (providerLower.includes('paystack')) return 'paystack';
   if (providerLower.includes('hubtel')) return 'hubtel';
   if (providerLower.includes('flutterwave')) return 'flutterwave';
+  if (providerLower.includes('monnify')) return 'monnify';
+  if (providerLower.includes('mpesa') || providerLower.includes('m-pesa')) return 'mpesa';
+  if (providerLower.includes('stripe')) return 'stripe';
   // Default to paystack if unknown
   return 'paystack';
 }
+
 
 /**
  * Maps backend payment intent response to SDK PaymentIntent type

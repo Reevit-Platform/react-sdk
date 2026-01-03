@@ -169,7 +169,7 @@ export interface PaymentIntent {
   /** Payment status */
   status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
   /** Recommended PSP based on routing rules */
-  recommendedPsp: 'paystack' | 'hubtel' | 'flutterwave';
+  recommendedPsp: 'paystack' | 'hubtel' | 'flutterwave' | 'monnify' | 'mpesa' | 'stripe';
   /** Available payment methods for this intent */
   availableMethods: PaymentMethod[];
   /** Reference provided or generated */

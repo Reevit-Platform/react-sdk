@@ -4,12 +4,18 @@
  */
 
 import { useEffect, useState, useCallback, createContext, useContext } from 'react';
-import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData } from '../types';
+import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, PaymentResult } from '../types';
 import { useReevit } from '../hooks/useReevit';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { MobileMoneyForm } from './MobileMoneyForm';
 import { PaystackBridge } from '../bridges/PaystackBridge';
+import { HubtelBridge } from '../bridges/HubtelBridge';
+import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
+import { MonnifyBridge } from '../bridges/MonnifyBridge';
+import { MPesaBridge } from '../bridges/MPesaBridge';
+import { StripeBridge } from '../bridges/StripeBridge';
 import { formatAmount, createThemeVariables, cn } from '../utils';
+
 
 // Context for nested components
 interface ReevitContextValue {
@@ -259,34 +265,176 @@ export function ReevitCheckout({
       );
     }
 
-    // PSP Bridge (Paystack popup)
+    // PSP Bridge - dynamically route to the correct bridge based on provider
     if (showPSPBridge) {
       // Use PSP public key from payment intent if available, otherwise fall back to Reevit public key
       const pspKey = paymentIntent?.pspPublicKey || publicKey;
-      return (
-        <PaystackBridge
-          publicKey={pspKey}
-          email={email}
-          phone={momoData?.phone || phone}
-          amount={paymentIntent?.amount ?? amount}
-          currency={paymentIntent?.currency ?? currency}
-          reference={reference}
-          accessCode={paymentIntent?.clientSecret}
-          metadata={{
-            ...metadata,
-            // Override with correct payment intent ID for webhook routing
-            // This ensures Paystack webhook includes the correct ID to find the payment
-            payment_id: paymentIntent?.id,
-            connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
-            customer_phone: momoData?.phone || phone,
-          }}
-          channels={selectedMethod === 'mobile_money' ? ['mobile_money'] : ['card']}
-          onSuccess={handlePSPSuccess}
-          onError={handlePSPError}
-          onClose={handlePSPClose}
-        />
-      );
+      const psp = paymentIntent?.recommendedPsp || 'paystack';
+
+      // Common props for bridges that support them
+      const bridgeMetadata = {
+        ...metadata,
+        // Override with correct payment intent ID for webhook routing
+        // This ensures webhook includes the correct ID to find the payment
+        payment_id: paymentIntent?.id,
+        connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
+        customer_phone: momoData?.phone || phone,
+      };
+
+      // Route to the correct PSP bridge
+      switch (psp) {
+        case 'paystack':
+          return (
+            <PaystackBridge
+              publicKey={pspKey}
+              email={email}
+              phone={momoData?.phone || phone}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              reference={reference}
+              accessCode={paymentIntent?.clientSecret}
+              metadata={bridgeMetadata}
+              channels={selectedMethod === 'mobile_money' ? ['mobile_money'] : ['card']}
+              onSuccess={handlePSPSuccess}
+              onError={handlePSPError}
+              onClose={handlePSPClose}
+            />
+          );
+
+        case 'hubtel':
+          return (
+            <HubtelBridge
+              merchantAccount={pspKey}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              reference={paymentIntent?.reference || reference}
+              email={email}
+              phone={momoData?.phone || phone}
+              description={`Payment ${paymentIntent?.reference || reference || ''}`}
+              onSuccess={handlePSPSuccess}
+              onError={(err: PaymentError) => handlePSPError(err)}
+              onClose={handlePSPClose}
+            />
+          );
+
+        case 'flutterwave':
+          return (
+            <FlutterwaveBridge
+              publicKey={pspKey}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              reference={paymentIntent?.reference || reference}
+              email={email}
+              phone={momoData?.phone || phone}
+              metadata={bridgeMetadata}
+              onSuccess={handlePSPSuccess}
+              onError={(err: PaymentError) => handlePSPError(err)}
+              onClose={handlePSPClose}
+            />
+          );
+
+        case 'monnify':
+          // Monnify requires contractCode which should be in pspPublicKey or metadata
+          return (
+            <MonnifyBridge
+              apiKey={pspKey}
+              contractCode={(metadata?.contract_code as string) || pspKey}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              reference={paymentIntent?.reference || reference || `monnify_${Date.now()}`}
+              customerName={(metadata?.customer_name as string) || email}
+              customerEmail={email}
+              customerPhone={momoData?.phone || phone}
+              metadata={bridgeMetadata}
+              onSuccess={(result) => handlePSPSuccess({
+                paymentId: result.transactionReference,
+                reference: result.paymentReference,
+                amount: result.amount,
+                currency: paymentIntent?.currency ?? currency,
+                paymentMethod: selectedMethod || 'card',
+                psp: 'monnify',
+                pspReference: result.transactionReference,
+                status: 'success',
+              })}
+              onError={(err) => handlePSPError({
+                code: err.code,
+                message: err.message,
+                recoverable: true
+              })}
+              onClose={handlePSPClose}
+            />
+          );
+
+        case 'mpesa':
+          // M-Pesa uses STK Push via API endpoint
+          return (
+            <MPesaBridge
+              apiEndpoint={`${apiBaseUrl || 'https://api.reevit.io'}/v1/payments/${paymentIntent?.id}/mpesa`}
+              phoneNumber={momoData?.phone || phone || ''}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              reference={paymentIntent?.reference || reference || `mpesa_${Date.now()}`}
+              description={`Payment ${paymentIntent?.reference || reference || ''}`}
+              headers={{ 'x-reevit-public-key': publicKey }}
+              onSuccess={(result) => handlePSPSuccess({
+                paymentId: result.transactionId,
+                reference: result.reference,
+                amount: paymentIntent?.amount ?? amount,
+                currency: paymentIntent?.currency ?? currency,
+                paymentMethod: 'mobile_money',
+                psp: 'mpesa',
+                pspReference: result.transactionId,
+                status: 'success',
+              })}
+              onError={(err) => handlePSPError({
+                code: err.code,
+                message: err.message,
+                recoverable: true
+              })}
+            />
+          );
+
+        case 'stripe':
+          return (
+            <StripeBridge
+              publishableKey={pspKey}
+              clientSecret={paymentIntent?.clientSecret || ''}
+              amount={paymentIntent?.amount ?? amount}
+              currency={paymentIntent?.currency ?? currency}
+              onSuccess={(result) => handlePSPSuccess({
+                paymentId: result.paymentIntentId,
+                reference: paymentIntent?.reference || reference || result.paymentIntentId,
+                amount: paymentIntent?.amount ?? amount,
+                currency: paymentIntent?.currency ?? currency,
+                paymentMethod: selectedMethod || 'card',
+                psp: 'stripe',
+                pspReference: result.paymentIntentId,
+                status: result.status === 'succeeded' ? 'success' : 'pending',
+              })}
+              onError={(err) => handlePSPError({
+                code: err.code,
+                message: err.message,
+                recoverable: true
+              })}
+              onCancel={handlePSPClose}
+            />
+          );
+
+        default:
+          // Unsupported PSP - show error with option to retry
+          return (
+            <div className="reevit-error">
+              <div className="reevit-error__icon">⚠️</div>
+              <h3>Payment Provider Not Supported</h3>
+              <p>The selected payment provider ({psp}) is not currently supported in this checkout.</p>
+              <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>
+                Go Back
+              </button>
+            </div>
+          );
+      }
     }
+
 
     // Mobile money form
     if (selectedMethod === 'mobile_money' && !showPSPBridge) {
