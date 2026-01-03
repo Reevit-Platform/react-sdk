@@ -61,7 +61,7 @@ function loadHubtelScript(): Promise<void> {
     }
 
     const script = document.createElement('script');
-    script.src = 'https://checkout.hubtel.com/checkout.js';
+    script.src = 'https://checkout-v3.hubtel.com/js/checkout.js';
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('Failed to load Hubtel script'));
