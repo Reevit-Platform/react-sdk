@@ -291,8 +291,6 @@ export function useReevit(options: UseReevitOptions) {
           metadata: { ...paymentData, backend_status: data?.status },
         };
 
-        console.log('[useReevit] Process result:', result);
-
         if (result.status === 'success') {
           dispatch({ type: 'PROCESS_SUCCESS', payload: result });
           onSuccess?.(result);
