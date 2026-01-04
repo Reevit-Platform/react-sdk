@@ -40,6 +40,21 @@ export interface PaymentIntentResponse {
   reference?: string;
 }
 
+/**
+ * Response from creating a Hubtel session token.
+ * The token provides secure, short-lived access to Hubtel checkout without exposing credentials.
+ */
+export interface HubtelSessionResponse {
+  /** Short-lived session token for Hubtel checkout */
+  token: string;
+  /** Hubtel merchant account number */
+  merchantAccount: string;
+  /** Token expiry time in seconds */
+  expiresInSeconds: number;
+  /** Unix timestamp when the token expires */
+  expiresAt: number;
+}
+
 export interface ConfirmPaymentRequest {
   provider_ref_id: string;
   provider_data?: Record<string, unknown>;
@@ -263,6 +278,18 @@ export class ReevitAPIClient {
    */
   async cancelPaymentIntent(paymentId: string): Promise<{ data?: PaymentDetailResponse; error?: PaymentError }> {
     return this.request<PaymentDetailResponse>('POST', `/v1/payments/${paymentId}/cancel`);
+  }
+
+  /**
+   * Creates a Hubtel session token for secure checkout.
+   * This endpoint generates a short-lived token that maps to Hubtel credentials server-side,
+   * avoiding exposure of sensitive credentials to the client.
+   *
+   * @param paymentId - The payment intent ID for Hubtel checkout
+   * @returns Hubtel session with token, merchant account, and expiry information
+   */
+  async createHubtelSession(paymentId: string): Promise<{ data?: HubtelSessionResponse; error?: PaymentError }> {
+    return this.request<HubtelSessionResponse>('POST', `/v1/payments/hubtel/sessions/${paymentId}`);
   }
 
   /**

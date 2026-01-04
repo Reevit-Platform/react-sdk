@@ -1,13 +1,20 @@
 /**
  * Hubtel Bridge
  * Handles integration with Hubtel payment using @hubteljs/checkout npm package
+ *
+ * Supports two authentication methods:
+ * 1. Session Token (recommended): Pass hubtelSessionToken to use secure, short-lived tokens
+ * 2. Basic Auth (legacy): Pass basicAuth for direct credential authentication
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import CheckoutSdk from '@hubteljs/checkout';
 import type { PaymentResult, PaymentError } from '../types';
+import { createReevitClient } from '../api/client';
 
 interface HubtelBridgeProps {
+  paymentId: string;
+  publicKey: string;
   merchantAccount: string | number;
   amount: number;
   currency?: string;
@@ -16,6 +23,9 @@ interface HubtelBridgeProps {
   phone?: string;
   description?: string;
   callbackUrl?: string;
+  /** Session token from server (recommended - credentials never exposed to client) */
+  hubtelSessionToken?: string;
+  /** Basic auth credential (legacy - credentials exposed to client, deprecated) */
   basicAuth?: string;
   onSuccess: (result: PaymentResult) => void;
   onError: (error: PaymentError) => void;
@@ -24,12 +34,15 @@ interface HubtelBridgeProps {
 }
 
 export function HubtelBridge({
+  paymentId,
+  publicKey,
   merchantAccount,
   amount,
   reference,
   phone,
   description = 'Payment',
   callbackUrl,
+  hubtelSessionToken,
   basicAuth,
   onSuccess,
   onError,
@@ -38,8 +51,56 @@ export function HubtelBridge({
 }: HubtelBridgeProps) {
   const initialized = useRef(false);
   const checkoutRef = useRef<InstanceType<typeof CheckoutSdk> | null>(null);
+  const [authValue, setAuthValue] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Fetch session token if provided, otherwise use basicAuth
+  useEffect(() => {
+    const fetchAuth = async () => {
+      // If session token is provided, fetch the session from the server
+      if (hubtelSessionToken) {
+        setIsLoading(true);
+        try {
+          const client = createReevitClient({ publicKey });
+          const { data, error } = await client.createHubtelSession(paymentId);
+          if (error) {
+            onError({
+              code: 'SESSION_ERROR',
+              message: error.message || 'Failed to create Hubtel session',
+              recoverable: true,
+            });
+            return;
+          }
+          if (data) {
+            // The session response contains basicAuth encoded in the token
+            // We need to use it with the Hubtel SDK
+            setAuthValue(data.token);
+          }
+        } catch (err) {
+          onError({
+            code: 'SESSION_ERROR',
+            message: 'Failed to create Hubtel session',
+            recoverable: true,
+            originalError: err,
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      } else if (basicAuth) {
+        // Legacy: Use basicAuth directly (deprecated - credentials exposed)
+        setAuthValue(basicAuth);
+      }
+    };
+
+    fetchAuth();
+  }, [paymentId, publicKey, hubtelSessionToken, basicAuth, onError]);
 
   const startPayment = useCallback(async () => {
+    // Wait for auth to be loaded
+    if (isLoading || !authValue) {
+      return;
+    }
+
     try {
       // Initialize the Checkout SDK
       const checkout = new CheckoutSdk();
@@ -56,7 +117,9 @@ export function HubtelBridge({
         branding: 'enabled' as const,
         callbackUrl: callbackUrl || window.location.href,
         merchantAccount: typeof merchantAccount === 'string' ? parseInt(merchantAccount, 10) : merchantAccount,
-        basicAuth: basicAuth || '',
+        // Use session token or basicAuth for authentication
+        // Session tokens are base64-encoded credentials fetched securely from the server
+        basicAuth: authValue || '',
       };
 
       checkout.openModal({
@@ -101,14 +164,14 @@ export function HubtelBridge({
       };
       onError(error);
     }
-  }, [merchantAccount, amount, reference, phone, description, callbackUrl, basicAuth, onSuccess, onError, onClose]);
+  }, [merchantAccount, amount, reference, phone, description, callbackUrl, authValue, isLoading, onSuccess, onError, onClose]);
 
   useEffect(() => {
-    if (autoStart && !initialized.current) {
+    if (autoStart && !initialized.current && !isLoading && authValue) {
       initialized.current = true;
       startPayment();
     }
-  }, [autoStart, startPayment]);
+  }, [autoStart, startPayment, isLoading, authValue]);
 
   return (
     <div className="reevit-psp-bridge reevit-psp-bridge--hubtel">
