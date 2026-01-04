@@ -265,11 +265,13 @@ export function ReevitCheckout({
       );
     }
 
+    // Determine PSP from payment intent or use default
+    const psp = paymentIntent?.recommendedPsp || 'paystack';
+
     // PSP Bridge - dynamically route to the correct bridge based on provider
     if (showPSPBridge) {
       // Use PSP public key from payment intent if available, otherwise fall back to Reevit public key
       const pspKey = paymentIntent?.pspPublicKey || publicKey;
-      const psp = paymentIntent?.recommendedPsp || 'paystack';
 
       // Common props for bridges that support them
       const bridgeMetadata = {
@@ -457,6 +459,7 @@ export function ReevitCheckout({
           selectedMethod={selectedMethod}
           onSelect={handleMethodSelect}
           disabled={isLoading}
+          provider={psp}
         />
 
         {selectedMethod && selectedMethod !== 'mobile_money' && (
