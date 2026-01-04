@@ -599,6 +599,158 @@
   margin-top: 16px;
 }
 
+/* ===== STRIPE BRIDGE ===== */
+.reevit-stripe-bridge {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.reevit-stripe-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 12px;
+  min-height: 200px;
+}
+
+.reevit-stripe-loading p {
+  font-size: 12px;
+  color: var(--reevit-text-secondary);
+  margin: 0;
+}
+
+.reevit-stripe-element {
+  min-height: 200px;
+  border-radius: var(--reevit-radius);
+}
+
+/* Override Stripe's default form styling for better dark mode compatibility */
+.reevit-stripe-element iframe {
+  border-radius: var(--reevit-radius);
+}
+
+.reevit-stripe-error {
+  padding: 10px 14px;
+  background: oklch(0.577 0.245 27.325 / 0.1);
+  border: 1px solid var(--reevit-error);
+  border-radius: var(--reevit-radius);
+}
+
+.reevit-stripe-error p {
+  font-size: 12px;
+  color: var(--reevit-error);
+  margin: 0;
+}
+
+.reevit-stripe-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Submit Button - Primary action */
+.reevit-submit-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--reevit-radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--reevit-font);
+  min-height: 44px;
+  letter-spacing: -0.01em;
+  background: oklch(1 0 0);
+  color: oklch(0.145 0 0);
+  border: 1px solid var(--reevit-border);
+}
+
+.reevit-submit-btn:hover:not(:disabled) {
+  background: oklch(0.97 0 0);
+  border-color: var(--reevit-text-secondary);
+}
+
+.reevit-submit-btn:focus:not(:disabled) {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
+}
+
+.reevit-submit-btn:active:not(:disabled) {
+  background: oklch(0.95 0 0);
+  transform: scale(0.98);
+}
+
+.reevit-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cancel Button - Secondary action */
+.reevit-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--reevit-radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--reevit-font);
+  min-height: 44px;
+  letter-spacing: -0.01em;
+  background: transparent;
+  color: var(--reevit-text);
+  border: 1px solid var(--reevit-border);
+}
+
+.reevit-cancel-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--reevit-text);
+}
+
+.reevit-cancel-btn:focus:not(:disabled) {
+  outline: none;
+  border-color: var(--reevit-text);
+  box-shadow: 0 0 0 2px var(--reevit-border);
+}
+
+.reevit-cancel-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.reevit-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark mode button overrides for Stripe */
+@media (prefers-color-scheme: dark) {
+  .reevit-submit-btn {
+    background: oklch(0.985 0 0);
+    color: oklch(0.145 0 0);
+  }
+  
+  .reevit-submit-btn:hover:not(:disabled) {
+    background: oklch(0.9 0 0);
+  }
+  
+  .reevit-submit-btn:active:not(:disabled) {
+    background: oklch(0.85 0 0);
+  }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {
   .reevit-modal {
