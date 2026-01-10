@@ -18,6 +18,7 @@ export interface CreatePaymentIntentRequest {
   description?: string;
   policy?: {
     prefer?: string[];
+    allowed_providers?: string[];
     max_amount?: number;
     blocked_bins?: string[];
     allowed_bins?: string[];
@@ -38,6 +39,13 @@ export interface PaymentIntentResponse {
   fee_currency: string;
   net_amount: number;
   reference?: string;
+  available_psps?: Array<{
+    provider: string;
+    name: string;
+    methods: string[];
+    countries?: string[];
+  }>;
+  branding?: Record<string, unknown>;
 }
 
 /**
@@ -228,7 +236,8 @@ export class ReevitAPIClient {
   async createPaymentIntent(
     config: ReevitCheckoutConfig,
     method: PaymentMethod,
-    country: string = 'GH'
+    country: string = 'GH',
+    options?: { preferredProviders?: string[]; allowedProviders?: string[] }
   ): Promise<{ data?: PaymentIntentResponse; error?: PaymentError }> {
     // Build metadata with customer_email for PSP providers that require it
     const metadata: Record<string, unknown> = { ...config.metadata };
@@ -248,6 +257,13 @@ export class ReevitAPIClient {
       phone: config.phone,
       metadata,
     };
+
+    if (options?.preferredProviders?.length || options?.allowedProviders?.length) {
+      request.policy = {
+        prefer: options?.preferredProviders,
+        allowed_providers: options?.allowedProviders,
+      };
+    }
 
     return this.request<PaymentIntentResponse>('POST', '/v1/payments/intents', request);
   }

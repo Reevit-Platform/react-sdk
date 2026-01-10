@@ -10,6 +10,12 @@ export default defineConfig({
   treeshake: true,
   splitting: false,
   minify: false,
+  esbuildOptions(options) {
+    options.loader = {
+      ...options.loader,
+      '.png': 'dataurl',
+    };
+  },
   onSuccess: async () => {
     // Copy CSS file to dist
     const fs = await import('fs');

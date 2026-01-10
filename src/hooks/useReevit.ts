@@ -11,6 +11,7 @@ import type {
   PaymentResult,
   PaymentError,
   PaymentIntent,
+  CheckoutProviderOption,
 } from '../types';
 import { generateReference } from '../utils';
 import { ReevitAPIClient, type PaymentIntentResponse } from '../api';
@@ -102,6 +103,35 @@ function mapProviderToPsp(provider: string): 'paystack' | 'hubtel' | 'flutterwav
   return 'paystack';
 }
 
+function normalizeProviderMethod(method: string): PaymentMethod | null {
+  const normalized = method.toLowerCase().trim();
+  if (normalized === 'card') return 'card';
+  if (normalized === 'mobile_money' || normalized === 'momo' || normalized === 'mobilemoney') return 'mobile_money';
+  if (normalized === 'bank' || normalized === 'bank_transfer' || normalized === 'transfer') return 'bank_transfer';
+  return null;
+}
+
+function mapAvailableProviders(
+  providers?: Array<{ provider: string; name: string; methods: string[]; countries?: string[] }>
+): CheckoutProviderOption[] | undefined {
+  if (!providers || providers.length === 0) return undefined;
+
+  return providers
+    .map((provider) => {
+      const methods = provider.methods
+        .map((method) => normalizeProviderMethod(method))
+        .filter(Boolean) as PaymentMethod[];
+
+      return {
+        provider: provider.provider,
+        name: provider.name,
+        methods,
+        countries: provider.countries,
+      };
+    })
+    .filter((provider) => provider.methods.length > 0);
+}
+
 
 /**
  * Maps backend payment intent response to SDK PaymentIntent type
@@ -126,6 +156,8 @@ function mapToPaymentIntent(
     feeCurrency: response.fee_currency,
     netAmount: response.net_amount,
     metadata: config.metadata,
+    availableProviders: mapAvailableProviders(response.available_psps),
+    branding: response.branding as PaymentIntent['branding'],
   };
 }
 
@@ -172,7 +204,10 @@ export function useReevit(options: UseReevitOptions) {
 
   // Initialize payment intent
   const initialize = useCallback(
-    async (method?: PaymentMethod) => {
+    async (
+      method?: PaymentMethod,
+      options?: { preferredProvider?: string; allowedProviders?: string[] }
+    ) => {
       // Guard against duplicate calls (especially in React StrictMode)
       if (initializingRef.current) {
         return;
@@ -201,7 +236,11 @@ export function useReevit(options: UseReevitOptions) {
         const { data, error } = await apiClient.createPaymentIntent(
           { ...config, reference },
           paymentMethod,
-          country
+          country,
+          {
+            preferredProviders: options?.preferredProvider ? [options.preferredProvider] : undefined,
+            allowedProviders: options?.allowedProviders,
+          }
         );
 
         if (error) {

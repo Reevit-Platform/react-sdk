@@ -118,10 +118,16 @@ export interface PaymentError {
 export interface ReevitTheme {
   /** Primary brand color */
   primaryColor?: string;
+  /** Primary text color on brand surfaces */
+  primaryForegroundColor?: string;
   /** Background color */
   backgroundColor?: string;
+  /** Surface color for cards/panels */
+  surfaceColor?: string;
   /** Text color */
   textColor?: string;
+  /** Muted text color */
+  mutedTextColor?: string;
   /** Border radius for inputs and buttons */
   borderRadius?: string;
   /** Font family to use */
@@ -136,6 +142,14 @@ export interface PSPConfig {
   name: string;
   supportedMethods: PaymentMethod[];
   supportedCurrencies: string[];
+}
+
+// Checkout provider options returned by the API
+export interface CheckoutProviderOption {
+  provider: string;
+  name: string;
+  methods: PaymentMethod[];
+  countries?: string[];
 }
 
 // Mobile money form data
@@ -195,4 +209,8 @@ export interface PaymentIntent {
   netAmount?: number;
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+  /** Available PSPs for this checkout session */
+  availableProviders?: CheckoutProviderOption[];
+  /** Brand theme from checkout settings */
+  branding?: ReevitTheme;
 }

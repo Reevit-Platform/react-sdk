@@ -3,11 +3,12 @@
  * Main checkout component that orchestrates the payment flow
  */
 
-import { useEffect, useState, useCallback, createContext, useContext } from 'react';
-import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, PaymentResult } from '../types';
+import { useEffect, useState, useCallback, useMemo, createContext, useContext } from 'react';
+import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, PaymentResult, CheckoutProviderOption } from '../types';
 import { useReevit } from '../hooks/useReevit';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { MobileMoneyForm } from './MobileMoneyForm';
+import { ProviderSelector } from './ProviderSelector';
 import { PaystackBridge } from '../bridges/PaystackBridge';
 import { HubtelBridge } from '../bridges/HubtelBridge';
 import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
@@ -74,6 +75,7 @@ export function ReevitCheckout({
 
   const [showPSPBridge, setShowPSPBridge] = useState(false);
   const [momoData, setMomoData] = useState<MobileMoneyFormData | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
 
   const {
     status,
@@ -116,6 +118,34 @@ export function ReevitCheckout({
     onStateChange,
   });
 
+  const providerOptions = useMemo<CheckoutProviderOption[]>(() => {
+    const available = paymentIntent?.availableProviders ?? [];
+    const fallbackProvider = paymentIntent?.recommendedPsp
+      ? [{
+          provider: paymentIntent.recommendedPsp,
+          name: paymentIntent.recommendedPsp.replace(/^\w/, (c) => c.toUpperCase()),
+          methods: paymentMethods,
+        }]
+      : [];
+    const options = available.length > 0 ? available : fallbackProvider;
+
+    return options
+      .map((provider) => {
+        const methods = provider.methods && provider.methods.length > 0 ? provider.methods : paymentMethods;
+        const filteredMethods = methods.filter((method) => paymentMethods.includes(method));
+        return {
+          ...provider,
+          methods: filteredMethods,
+        };
+      })
+      .filter((provider) => provider.methods.length > 0);
+  }, [paymentIntent, paymentMethods]);
+
+  const activeProvider = providerOptions.find((provider) => provider.provider === selectedProvider) || providerOptions[0];
+  const availableMethods = activeProvider?.methods && activeProvider.methods.length > 0
+    ? activeProvider.methods
+    : paymentMethods;
+
   // Initialize when opened
   useEffect(() => {
     // Only initialize if opened and NOT in controlled mode with an initial intent
@@ -123,6 +153,30 @@ export function ReevitCheckout({
       initialize();
     }
   }, [isOpen, status, initialize, initialPaymentIntent]);
+
+  useEffect(() => {
+    if (providerOptions.length === 0) {
+      return;
+    }
+
+    if (selectedProvider && providerOptions.some((provider) => provider.provider === selectedProvider)) {
+      return;
+    }
+
+    const recommended = paymentIntent?.recommendedPsp;
+    const resolved = providerOptions.find((provider) => provider.provider === recommended)?.provider || providerOptions[0].provider;
+    setSelectedProvider(resolved);
+  }, [paymentIntent?.recommendedPsp, providerOptions, selectedProvider]);
+
+  useEffect(() => {
+    if (!activeProvider || !selectedMethod) {
+      return;
+    }
+
+    if (!activeProvider.methods.includes(selectedMethod)) {
+      selectMethod(activeProvider.methods[0]);
+    }
+  }, [activeProvider, selectedMethod, selectMethod]);
 
   // Handle auto-advance logic
   useEffect(() => {
@@ -145,6 +199,7 @@ export function ReevitCheckout({
     setIsOpen(true);
     setShowPSPBridge(false);
     setMomoData(null);
+    setSelectedProvider(null);
   }, [controlledIsOpen, setIsOpen]);
 
   // Close modal
@@ -153,6 +208,7 @@ export function ReevitCheckout({
     setIsOpen(false);
     setShowPSPBridge(false);
     setMomoData(null);
+    setSelectedProvider(null);
   }, [closeCheckout, setIsOpen]);
 
   // Handle payment method selection
@@ -161,6 +217,27 @@ export function ReevitCheckout({
       selectMethod(method);
     },
     [selectMethod]
+  );
+
+  const handleProviderSelect = useCallback(
+    (provider: string) => {
+      if (provider === selectedProvider) {
+        return;
+      }
+
+      const providerMethods =
+        providerOptions.find((option) => option.provider === provider)?.methods || paymentMethods;
+      const methodForInit = selectedMethod && providerMethods.includes(selectedMethod)
+        ? selectedMethod
+        : providerMethods[0] || paymentMethods[0];
+
+      setSelectedProvider(provider);
+      reset();
+      setShowPSPBridge(false);
+      setMomoData(null);
+      initialize(methodForInit, { preferredProvider: provider, allowedProviders: [provider] });
+    },
+    [initialize, paymentMethods, providerOptions, reset, selectedMethod, selectedProvider]
   );
 
   // Handle continue after method selection
@@ -211,7 +288,30 @@ export function ReevitCheckout({
   }, [reset]);
 
   // Theme styles
-  const themeStyles = theme ? createThemeVariables(theme as unknown as Record<string, string | undefined>) : {};
+  const resolvedTheme = useMemo(() => {
+    if (!theme && !paymentIntent?.branding) {
+      return undefined;
+    }
+    return {
+      ...(paymentIntent?.branding || {}),
+      ...(theme || {}),
+    };
+  }, [paymentIntent?.branding, theme]);
+
+  const themeStyles = resolvedTheme
+    ? createThemeVariables(resolvedTheme as unknown as Record<string, string | undefined>)
+    : {};
+  const themeMode = resolvedTheme?.darkMode;
+  const dataTheme = useMemo(() => {
+    if (typeof themeMode === 'boolean') {
+      return themeMode ? 'dark' : 'light';
+    }
+    if (typeof document !== 'undefined') {
+      if (document.documentElement.classList.contains('dark')) return 'dark';
+      if (document.documentElement.classList.contains('light')) return 'light';
+    }
+    return undefined;
+  }, [themeMode]);
 
   // Render trigger
   // If in controlled mode (isOpen is provided), we don't attach an onClick to children
@@ -266,7 +366,7 @@ export function ReevitCheckout({
     }
 
     // Determine PSP from payment intent or use default
-    const psp = paymentIntent?.recommendedPsp || 'paystack';
+    const psp = selectedProvider || paymentIntent?.recommendedPsp || 'paystack';
 
     // PSP Bridge - dynamically route to the correct bridge based on provider
     if (showPSPBridge) {
@@ -456,12 +556,21 @@ export function ReevitCheckout({
     // Method selection
     return (
       <div className="reevit-method-step">
+        {providerOptions.length > 1 && (
+          <ProviderSelector
+            providers={providerOptions}
+            selectedProvider={selectedProvider}
+            onSelect={handleProviderSelect}
+            disabled={isLoading}
+          />
+        )}
+
         <PaymentMethodSelector
-          methods={paymentMethods}
+          methods={availableMethods}
           selectedMethod={selectedMethod}
           onSelect={handleMethodSelect}
           disabled={isLoading}
-          provider={psp}
+          provider={activeProvider?.provider || psp}
         />
 
         {selectedMethod && selectedMethod !== 'mobile_money' && (
@@ -488,6 +597,7 @@ export function ReevitCheckout({
           <div
             className={cn('reevit-modal', isComplete && 'reevit-modal--success')}
             style={themeStyles}
+            data-reevit-theme={dataTheme}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

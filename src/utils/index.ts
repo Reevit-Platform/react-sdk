@@ -97,21 +97,63 @@ export function createThemeVariables(theme: Record<string, string | undefined>):
 
   if (theme.primaryColor) {
     variables['--reevit-primary'] = theme.primaryColor;
+    if (theme.primaryForegroundColor) {
+      variables['--reevit-primary-foreground'] = theme.primaryForegroundColor;
+    } else {
+      const contrast = getContrastingColor(theme.primaryColor);
+      if (contrast) {
+        variables['--reevit-primary-foreground'] = contrast;
+      }
+    }
   }
   if (theme.backgroundColor) {
     variables['--reevit-background'] = theme.backgroundColor;
   }
+  if (theme.surfaceColor) {
+    variables['--reevit-surface'] = theme.surfaceColor;
+  }
   if (theme.textColor) {
     variables['--reevit-text'] = theme.textColor;
   }
+  if (theme.mutedTextColor) {
+    variables['--reevit-text-secondary'] = theme.mutedTextColor;
+  }
   if (theme.borderRadius) {
     variables['--reevit-radius'] = theme.borderRadius;
+    variables['--reevit-radius-sm'] = theme.borderRadius;
+    variables['--reevit-radius-lg'] = theme.borderRadius;
   }
   if (theme.fontFamily) {
     variables['--reevit-font'] = theme.fontFamily;
   }
 
   return variables;
+}
+
+function getContrastingColor(color: string): string | null {
+  const hex = color.trim();
+  if (!hex.startsWith('#')) {
+    return null;
+  }
+
+  const normalized = hex.length === 4
+    ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+    : hex;
+
+  if (normalized.length !== 7) {
+    return null;
+  }
+
+  const r = parseInt(normalized.slice(1, 3), 16);
+  const g = parseInt(normalized.slice(3, 5), 16);
+  const b = parseInt(normalized.slice(5, 7), 16);
+
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return null;
+  }
+
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness >= 140 ? '#0b1120' : '#ffffff';
 }
 
 /**
