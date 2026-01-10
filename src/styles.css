@@ -145,6 +145,12 @@
   object-fit: contain;
 }
 
+.reevit-modal__brand-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--reevit-text);
+}
+
 .reevit-modal__close {
   width: 28px;
   height: 28px;

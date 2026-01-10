@@ -338,6 +338,7 @@ export function ReevitCheckout({
   const themeStyles = resolvedTheme
     ? createThemeVariables(resolvedTheme as unknown as Record<string, string | undefined>)
     : {};
+  const brandName = resolvedTheme?.companyName;
   const themeMode = resolvedTheme?.darkMode;
   const dataTheme = useMemo(() => {
     if (typeof themeMode === 'boolean') {
@@ -635,7 +636,12 @@ export function ReevitCheckout({
           >
             <div className="reevit-modal__header">
               <div className="reevit-modal__branding">
-                <img src={resolvedTheme?.logoUrl || "https://i.imgur.com/bzUR5Lm.png"} alt="Checkout" className="reevit-modal__logo" />
+                <img
+                  src={resolvedTheme?.logoUrl || "https://i.imgur.com/bzUR5Lm.png"}
+                  alt={brandName || "Reevit"}
+                  className="reevit-modal__logo"
+                />
+                {brandName && <span className="reevit-modal__brand-name">{brandName}</span>}
               </div>
               <button className="reevit-modal__close" onClick={handleClose} aria-label="Close">✕</button>
             </div>

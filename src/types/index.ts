@@ -142,6 +142,8 @@ export interface ReevitTheme {
   darkMode?: boolean;
   /** Custom logo URL to display in checkout header */
   logoUrl?: string;
+  /** Company or organization name to display in checkout header */
+  companyName?: string;
   /** PSP selector background color */
   pspSelectorBgColor?: string;
   /** PSP selector text color */
