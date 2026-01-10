@@ -19,6 +19,7 @@ interface HubtelBridgeProps {
   amount: number;
   currency?: string;
   reference?: string;
+  email?: string;
   phone?: string;
   description?: string;
   callbackUrl?: string;
@@ -42,6 +43,7 @@ export function HubtelBridge({
   amount,
   currency,
   reference,
+  email,
   phone,
   description = 'Payment',
   callbackUrl,
@@ -117,6 +119,7 @@ export function HubtelBridge({
         amount: amount / 100, // Convert from minor to major units
         purchaseDescription: description,
         customerPhoneNumber: phone || '',
+        ...(email ? { customerEmail: email } : {}),
         clientReference: reference || `hubtel_${Date.now()}`,
         ...(methodPreference ? { paymentMethod: methodPreference } : {}),
       };
