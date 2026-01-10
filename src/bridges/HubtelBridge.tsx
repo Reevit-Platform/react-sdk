@@ -3,8 +3,8 @@
  * Handles integration with Hubtel payment using @hubteljs/checkout npm package
  *
  * Supports two authentication methods:
- * 1. Session Token (recommended): Pass hubtelSessionToken to use secure, short-lived tokens
- * 2. Basic Auth (legacy): Pass basicAuth for direct credential authentication
+ * 1. Session (recommended): Fetches base64 basicAuth from the backend session endpoint
+ * 2. Basic Auth (legacy): Pass basicAuth directly (deprecated - credentials exposed)
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
@@ -19,15 +19,14 @@ interface HubtelBridgeProps {
   amount: number;
   currency?: string;
   reference?: string;
-  email?: string;
   phone?: string;
   description?: string;
   callbackUrl?: string;
   apiBaseUrl?: string;
   clientSecret?: string;
-  /** Session token from server (recommended - credentials never exposed to client) */
+  /** Session token from server (triggers session fetch) */
   hubtelSessionToken?: string;
-  /** Basic auth credential (legacy - credentials exposed to client, deprecated) */
+  /** Base64 basic auth credential (legacy - credentials exposed) */
   basicAuth?: string;
   preferredMethod?: PaymentMethod;
   onSuccess: (result: PaymentResult) => void;
@@ -41,6 +40,7 @@ export function HubtelBridge({
   publicKey,
   merchantAccount,
   amount,
+  currency,
   reference,
   phone,
   description = 'Payment',
@@ -56,7 +56,6 @@ export function HubtelBridge({
   autoStart = true,
 }: HubtelBridgeProps) {
   const initialized = useRef(false);
-  const checkoutRef = useRef<InstanceType<typeof CheckoutSdk> | null>(null);
   const [authValue, setAuthValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [resolvedMerchantAccount, setResolvedMerchantAccount] = useState<string | number>(merchantAccount);
@@ -65,30 +64,25 @@ export function HubtelBridge({
     setResolvedMerchantAccount(merchantAccount);
   }, [merchantAccount]);
 
-  // Fetch session token if provided, otherwise use basicAuth
+  // Fetch basicAuth if session trigger is provided, otherwise use legacy basicAuth
   useEffect(() => {
     const fetchAuth = async () => {
-      // If session token is provided, fetch the session from the server
       if (hubtelSessionToken) {
         setIsLoading(true);
         try {
           const client = createReevitClient({ publicKey, baseUrl: apiBaseUrl });
           const { data, error } = await client.createHubtelSession(paymentId, clientSecret);
-          if (error) {
+          if (error || !data?.basicAuth) {
             onError({
               code: 'SESSION_ERROR',
-              message: error.message || 'Failed to create Hubtel session',
+              message: error?.message || 'Failed to create Hubtel session',
               recoverable: true,
             });
             return;
           }
-          if (data) {
-            // The session response contains basicAuth encoded in the token
-            // We need to use it with the Hubtel SDK
-            setAuthValue(data.token);
-            if (data.merchantAccount) {
-              setResolvedMerchantAccount(data.merchantAccount);
-            }
+          setAuthValue(data.basicAuth);
+          if (data.merchantAccount) {
+            setResolvedMerchantAccount(data.merchantAccount);
           }
         } catch (err) {
           onError({
@@ -101,7 +95,6 @@ export function HubtelBridge({
           setIsLoading(false);
         }
       } else if (basicAuth) {
-        // Legacy: Use basicAuth directly (deprecated - credentials exposed)
         setAuthValue(basicAuth);
       }
     };
@@ -110,15 +103,12 @@ export function HubtelBridge({
   }, [paymentId, publicKey, apiBaseUrl, clientSecret, hubtelSessionToken, basicAuth, onError]);
 
   const startPayment = useCallback(async () => {
-    // Wait for auth to be loaded
     if (isLoading || !authValue) {
       return;
     }
 
     try {
-      // Initialize the Checkout SDK
       const checkout = new CheckoutSdk();
-      checkoutRef.current = checkout;
 
       const methodPreference =
         preferredMethod === 'mobile_money' ? 'momo' : preferredMethod === 'card' ? 'card' : undefined;
@@ -137,8 +127,6 @@ export function HubtelBridge({
         merchantAccount: typeof resolvedMerchantAccount === 'string'
           ? parseInt(resolvedMerchantAccount, 10)
           : resolvedMerchantAccount,
-        // Use session token or basicAuth for authentication
-        // Session tokens are base64-encoded credentials fetched securely from the server
         basicAuth: authValue || '',
         ...(methodPreference ? { paymentMethod: methodPreference } : {}),
       };
@@ -153,8 +141,8 @@ export function HubtelBridge({
               paymentId: (data.transactionId as string) || reference || '',
               reference: (data.clientReference as string) || reference || '',
               amount: amount,
-              currency: 'GHS',
-              paymentMethod: 'mobile_money',
+              currency: currency || 'GHS',
+              paymentMethod: preferredMethod || 'mobile_money',
               psp: 'hubtel',
               pspReference: (data.transactionId as string) || '',
               status: 'success',
@@ -185,7 +173,21 @@ export function HubtelBridge({
       };
       onError(error);
     }
-  }, [merchantAccount, amount, reference, phone, description, callbackUrl, authValue, isLoading, preferredMethod, onSuccess, onError, onClose]);
+  }, [
+    amount,
+    reference,
+    phone,
+    description,
+    callbackUrl,
+    authValue,
+    isLoading,
+    preferredMethod,
+    onSuccess,
+    onError,
+    onClose,
+    resolvedMerchantAccount,
+    currency,
+  ]);
 
   useEffect(() => {
     if (autoStart && !initialized.current && !isLoading && authValue) {

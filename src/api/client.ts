@@ -57,6 +57,8 @@ export interface HubtelSessionResponse {
   token: string;
   /** Hubtel merchant account number */
   merchantAccount: string;
+  /** Base64 basic auth for Hubtel checkout (exposes credentials) */
+  basicAuth?: string;
   /** Token expiry time in seconds */
   expiresInSeconds: number;
   /** Unix timestamp when the token expires */

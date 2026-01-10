@@ -435,7 +435,7 @@ export function ReevitCheckout({
             <HubtelBridge
               paymentId={paymentIntent?.id || ''}
               publicKey={publicKey}
-              merchantAccount={pspKey}
+              merchantAccount={paymentIntent?.pspCredentials?.merchantAccount || ''}
               amount={paymentIntent?.amount ?? amount}
               currency={paymentIntent?.currency ?? currency}
               reference={paymentIntent?.reference || reference}
