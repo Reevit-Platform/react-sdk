@@ -244,7 +244,11 @@ export function useReevit(options: UseReevitOptions) {
         const country = detectCountryFromCurrency(config.currency);
 
         // Select payment method to send to backend
-        const paymentMethod = method || config.paymentMethods?.[0] || 'card';
+        const defaultMethod =
+          config.paymentMethods && config.paymentMethods.length === 1
+            ? config.paymentMethods[0]
+            : undefined;
+        const paymentMethod = method ?? defaultMethod;
 
         let data: PaymentIntentResponse | undefined;
         let error: PaymentError | undefined;

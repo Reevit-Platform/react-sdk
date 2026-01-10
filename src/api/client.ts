@@ -10,7 +10,7 @@ import type { PaymentMethod, ReevitCheckoutConfig, PaymentError } from '../types
 export interface CreatePaymentIntentRequest {
   amount: number;
   currency: string;
-  method: string;
+  method?: string;
   country: string;
   customer_id?: string;
   phone?: string;
@@ -237,7 +237,7 @@ export class ReevitAPIClient {
    */
   async createPaymentIntent(
     config: ReevitCheckoutConfig,
-    method: PaymentMethod,
+    method?: PaymentMethod,
     country: string = 'GH',
     options?: { preferredProviders?: string[]; allowedProviders?: string[] }
   ): Promise<{ data?: PaymentIntentResponse; error?: PaymentError }> {
@@ -253,12 +253,15 @@ export class ReevitAPIClient {
     const request: CreatePaymentIntentRequest = {
       amount: config.amount,
       currency: config.currency,
-      method: this.mapPaymentMethod(method),
       country,
       customer_id: config.email || (config.metadata?.customerId as string | undefined),
       phone: config.phone,
       metadata,
     };
+
+    if (method) {
+      request.method = this.mapPaymentMethod(method);
+    }
 
     if (options?.preferredProviders?.length || options?.allowedProviders?.length) {
       request.policy = {
