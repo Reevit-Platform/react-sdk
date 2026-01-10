@@ -134,6 +134,16 @@ export interface ReevitTheme {
   fontFamily?: string;
   /** Whether to use dark mode */
   darkMode?: boolean;
+  /** Custom logo URL to display in checkout header */
+  logoUrl?: string;
+  /** PSP selector background color */
+  pspSelectorBgColor?: string;
+  /** PSP selector text color */
+  pspSelectorTextColor?: string;
+  /** PSP selector border color */
+  pspSelectorBorderColor?: string;
+  /** Use border-only style for PSP selector (no filled background) */
+  pspSelectorUseBorder?: boolean;
 }
 
 // PSP configuration (internal)

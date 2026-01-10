@@ -9,7 +9,7 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import CheckoutSdk from '@hubteljs/checkout';
-import type { PaymentResult, PaymentError } from '../types';
+import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
 
 interface HubtelBridgeProps {
@@ -27,6 +27,7 @@ interface HubtelBridgeProps {
   hubtelSessionToken?: string;
   /** Basic auth credential (legacy - credentials exposed to client, deprecated) */
   basicAuth?: string;
+  preferredMethod?: PaymentMethod;
   onSuccess: (result: PaymentResult) => void;
   onError: (error: PaymentError) => void;
   onClose: () => void;
@@ -44,6 +45,7 @@ export function HubtelBridge({
   callbackUrl,
   hubtelSessionToken,
   basicAuth,
+  preferredMethod,
   onSuccess,
   onError,
   onClose,
@@ -106,11 +108,15 @@ export function HubtelBridge({
       const checkout = new CheckoutSdk();
       checkoutRef.current = checkout;
 
+      const methodPreference =
+        preferredMethod === 'mobile_money' ? 'momo' : preferredMethod === 'card' ? 'card' : undefined;
+
       const purchaseInfo = {
         amount: amount / 100, // Convert from minor to major units
         purchaseDescription: description,
         customerPhoneNumber: phone || '',
         clientReference: reference || `hubtel_${Date.now()}`,
+        ...(methodPreference ? { paymentMethod: methodPreference } : {}),
       };
 
       const config = {
@@ -120,6 +126,7 @@ export function HubtelBridge({
         // Use session token or basicAuth for authentication
         // Session tokens are base64-encoded credentials fetched securely from the server
         basicAuth: authValue || '',
+        ...(methodPreference ? { paymentMethod: methodPreference } : {}),
       };
 
       checkout.openModal({
@@ -164,7 +171,7 @@ export function HubtelBridge({
       };
       onError(error);
     }
-  }, [merchantAccount, amount, reference, phone, description, callbackUrl, authValue, isLoading, onSuccess, onError, onClose]);
+  }, [merchantAccount, amount, reference, phone, description, callbackUrl, authValue, isLoading, preferredMethod, onSuccess, onError, onClose]);
 
   useEffect(() => {
     if (autoStart && !initialized.current && !isLoading && authValue) {
@@ -195,17 +202,22 @@ export function openHubtelPopup(config: {
   callbackUrl?: string;
   customerPhoneNumber?: string;
   basicAuth?: string;
+  preferredMethod?: PaymentMethod;
   onSuccess?: (data: Record<string, unknown>) => void;
   onError?: (data: Record<string, unknown>) => void;
   onClose?: () => void;
 }): void {
   const checkout = new CheckoutSdk();
 
+  const methodPreference =
+    config.preferredMethod === 'mobile_money' ? 'momo' : config.preferredMethod === 'card' ? 'card' : undefined;
+
   const purchaseInfo = {
     amount: config.amount,
     purchaseDescription: config.description,
     customerPhoneNumber: config.customerPhoneNumber || '',
     clientReference: config.clientReference || `hubtel_${Date.now()}`,
+    ...(methodPreference ? { paymentMethod: methodPreference } : {}),
   };
 
   const checkoutConfig = {
@@ -215,6 +227,7 @@ export function openHubtelPopup(config: {
       ? parseInt(config.merchantAccount, 10)
       : config.merchantAccount,
     basicAuth: config.basicAuth || '',
+    ...(methodPreference ? { paymentMethod: methodPreference } : {}),
   };
 
   checkout.openModal({

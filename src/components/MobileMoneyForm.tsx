@@ -9,9 +9,10 @@ import { validatePhone, detectNetwork, formatPhone, cn } from '../utils';
 
 interface MobileMoneyFormProps {
   onSubmit: (data: MobileMoneyFormData) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   isLoading?: boolean;
   initialPhone?: string;
+  hideCancel?: boolean;
 }
 
 const networks: { id: MobileMoneyNetwork; name: string; color: string }[] = [
@@ -25,6 +26,7 @@ export function MobileMoneyForm({
   onCancel,
   isLoading = false,
   initialPhone = '',
+  hideCancel = false,
 }: MobileMoneyFormProps) {
   const [phone, setPhone] = useState(initialPhone);
   const [network, setNetwork] = useState<MobileMoneyNetwork | null>(null);
@@ -126,14 +128,16 @@ export function MobileMoneyForm({
       </div>
 
       <div className="reevit-momo-form__actions">
-        <button
-          type="button"
-          className="reevit-btn reevit-btn--secondary"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Back
-        </button>
+        {!hideCancel && (
+          <button
+            type="button"
+            className="reevit-btn reevit-btn--secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Back
+          </button>
+        )}
         <button
           type="submit"
           className="reevit-btn reevit-btn--primary"

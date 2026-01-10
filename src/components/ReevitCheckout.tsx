@@ -35,6 +35,15 @@ export function useReevitContext() {
   return context;
 }
 
+const pspNames: Record<string, string> = {
+  hubtel: "Hubtel",
+  paystack: "Paystack",
+  flutterwave: "Flutterwave",
+  monnify: "Monnify",
+  mpesa: "M-Pesa",
+  stripe: "Stripe",
+};
+
 export function ReevitCheckout({
   // Config
   publicKey,
@@ -122,17 +131,20 @@ export function ReevitCheckout({
     const available = paymentIntent?.availableProviders ?? [];
     const fallbackProvider = paymentIntent?.recommendedPsp
       ? [{
-          provider: paymentIntent.recommendedPsp,
-          name: paymentIntent.recommendedPsp.replace(/^\w/, (c) => c.toUpperCase()),
-          methods: paymentMethods,
-        }]
+        provider: paymentIntent.recommendedPsp,
+        name: paymentIntent.recommendedPsp.replace(/^\w/, (c) => c.toUpperCase()),
+        methods: paymentMethods,
+      }]
       : [];
     const options = available.length > 0 ? available : fallbackProvider;
 
     return options
       .map((provider) => {
         const methods = provider.methods && provider.methods.length > 0 ? provider.methods : paymentMethods;
-        const filteredMethods = methods.filter((method) => paymentMethods.includes(method));
+        const sanitizedMethods = provider.provider.toLowerCase().includes('hubtel')
+          ? methods.filter((method) => method === 'card' || method === 'mobile_money')
+          : methods;
+        const filteredMethods = sanitizedMethods.filter((method) => paymentMethods.includes(method));
         return {
           ...provider,
           methods: filteredMethods,
@@ -159,14 +171,17 @@ export function ReevitCheckout({
       return;
     }
 
+    // If we have a selected provider that's still valid, keep it
     if (selectedProvider && providerOptions.some((provider) => provider.provider === selectedProvider)) {
       return;
     }
 
-    const recommended = paymentIntent?.recommendedPsp;
-    const resolved = providerOptions.find((provider) => provider.provider === recommended)?.provider || providerOptions[0].provider;
-    setSelectedProvider(resolved);
-  }, [paymentIntent?.recommendedPsp, providerOptions, selectedProvider]);
+    // Only auto-select if there's exactly one provider (no choice needed)
+    if (providerOptions.length === 1) {
+      setSelectedProvider(providerOptions[0].provider);
+    }
+    // Otherwise, don't auto-select - let user choose
+  }, [providerOptions, selectedProvider]);
 
   useEffect(() => {
     if (!activeProvider || !selectedMethod) {
@@ -182,16 +197,21 @@ export function ReevitCheckout({
   useEffect(() => {
     // Only auto-advance if we have a selected method AND an intent
     if (isOpen && selectedMethod && paymentIntent && !showPSPBridge) {
+      const psp = (selectedProvider || paymentIntent.recommendedPsp || 'paystack').toLowerCase();
+      const needsPhone = psp.includes('mpesa');
+
       // For card, auto-advance if we have an intent
       if (selectedMethod === 'card') {
         setShowPSPBridge(true);
       }
-      // For MoMo, auto-advance only if we have an intent AND a phone number
-      else if (selectedMethod === 'mobile_money' && (momoData?.phone || phone)) {
-        setShowPSPBridge(true);
+      // For mobile money, auto-advance only if we have an intent AND phone if required
+      else if (selectedMethod === 'mobile_money') {
+        if (!needsPhone || (momoData?.phone || phone)) {
+          setShowPSPBridge(true);
+        }
       }
     }
-  }, [isOpen, selectedMethod, showPSPBridge, paymentIntent, momoData, phone]);
+  }, [isOpen, selectedMethod, showPSPBridge, paymentIntent, momoData, phone, selectedProvider]);
 
   // Open modal
   const handleOpen = useCallback(() => {
@@ -221,7 +241,12 @@ export function ReevitCheckout({
 
   const handleProviderSelect = useCallback(
     (provider: string) => {
+      // Toggle behavior - clicking same PSP collapses it
       if (provider === selectedProvider) {
+        setSelectedProvider(null);
+        reset();
+        setShowPSPBridge(false);
+        setMomoData(null);
         return;
       }
 
@@ -247,9 +272,15 @@ export function ReevitCheckout({
     if (selectedMethod === 'card') {
       // For card payments, show PSP bridge (Paystack popup)
       setShowPSPBridge(true);
+    } else if (selectedMethod === 'mobile_money') {
+      const psp = (selectedProvider || paymentIntent?.recommendedPsp || 'paystack').toLowerCase();
+      const needsPhone = psp.includes('mpesa');
+
+      if (!needsPhone || (momoData?.phone || phone)) {
+        setShowPSPBridge(true);
+      }
     }
-    // Mobile money form is already shown when selected
-  }, [selectedMethod]);
+  }, [selectedMethod, selectedProvider, paymentIntent, momoData, phone]);
 
   // Handle mobile money form submission
   const handleMomoSubmit = useCallback(
@@ -314,10 +345,7 @@ export function ReevitCheckout({
   }, [themeMode]);
 
   // Render trigger
-  // If in controlled mode (isOpen is provided), we don't attach an onClick to children
-  // because the parent controls when the modal opens (usually after an API call).
   const isControlled = controlledIsOpen !== undefined;
-
   const trigger = children ? (
     <span onClick={isControlled ? undefined : handleOpen} role={isControlled ? undefined : "button"} tabIndex={isControlled ? undefined : 0}>
       {children}
@@ -333,7 +361,7 @@ export function ReevitCheckout({
     // Loading state
     if (status === 'loading' || status === 'processing') {
       return (
-        <div className="reevit-loading">
+        <div className="reevit-loading reevit-animate-fade-in">
           <div className="reevit-spinner" />
           <p>{status === 'loading' ? 'Preparing checkout...' : 'Processing payment...'}</p>
         </div>
@@ -343,7 +371,7 @@ export function ReevitCheckout({
     // Success state
     if (status === 'success' && result) {
       return (
-        <div className="reevit-success">
+        <div className="reevit-success reevit-animate-scale-in">
           <div className="reevit-success__icon">✓</div>
           <h3>Payment Successful</h3>
           <p>Reference: {result.reference}</p>
@@ -351,10 +379,10 @@ export function ReevitCheckout({
       );
     }
 
-    // Error state (only if not recoverable)
+    // Error state
     if (status === 'failed' && error && !error.recoverable) {
       return (
-        <div className="reevit-error">
+        <div className="reevit-error reevit-animate-fade-in">
           <div className="reevit-error__icon">✕</div>
           <h3>Payment Failed</h3>
           <p>{error.message}</p>
@@ -365,26 +393,20 @@ export function ReevitCheckout({
       );
     }
 
-    // Determine PSP from payment intent or use default
     const psp = selectedProvider || paymentIntent?.recommendedPsp || 'paystack';
+    const pspLower = psp.toLowerCase();
 
-    // PSP Bridge - dynamically route to the correct bridge based on provider
+    // PSP Bridge
     if (showPSPBridge) {
-      // Use PSP public key from payment intent if available, otherwise fall back to Reevit public key
       const pspKey = paymentIntent?.pspPublicKey || publicKey;
-
-      // Common props for bridges that support them
       const bridgeMetadata = {
         ...metadata,
-        // Override with correct payment intent ID for webhook routing
-        // This ensures webhook includes the correct ID to find the payment
         payment_id: paymentIntent?.id,
         connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
         customer_phone: momoData?.phone || phone,
       };
 
-      // Route to the correct PSP bridge
-      switch (psp) {
+      switch (pspLower) {
         case 'paystack':
           return (
             <PaystackBridge
@@ -402,7 +424,6 @@ export function ReevitCheckout({
               onClose={handlePSPClose}
             />
           );
-
         case 'hubtel':
           return (
             <HubtelBridge
@@ -416,12 +437,12 @@ export function ReevitCheckout({
               phone={momoData?.phone || phone}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
               hubtelSessionToken={paymentIntent?.id ? paymentIntent.id : undefined}
+              preferredMethod={selectedMethod || undefined}
               onSuccess={handlePSPSuccess}
               onError={(err: PaymentError) => handlePSPError(err)}
               onClose={handlePSPClose}
             />
           );
-
         case 'flutterwave':
           return (
             <FlutterwaveBridge
@@ -433,13 +454,11 @@ export function ReevitCheckout({
               phone={momoData?.phone || phone}
               metadata={bridgeMetadata}
               onSuccess={handlePSPSuccess}
-              onError={(err: PaymentError) => handlePSPError(err)}
+              onError={handlePSPError}
               onClose={handlePSPClose}
             />
           );
-
         case 'monnify':
-          // Monnify requires contractCode which should be in pspPublicKey or metadata
           return (
             <MonnifyBridge
               apiKey={pspKey}
@@ -451,27 +470,12 @@ export function ReevitCheckout({
               customerEmail={email}
               customerPhone={momoData?.phone || phone}
               metadata={bridgeMetadata}
-              onSuccess={(result) => handlePSPSuccess({
-                paymentId: result.transactionReference,
-                reference: result.paymentReference,
-                amount: result.amount,
-                currency: paymentIntent?.currency ?? currency,
-                paymentMethod: selectedMethod || 'card',
-                psp: 'monnify',
-                pspReference: result.transactionReference,
-                status: 'success',
-              })}
-              onError={(err) => handlePSPError({
-                code: err.code,
-                message: err.message,
-                recoverable: true
-              })}
+              onSuccess={(res) => handlePSPSuccess({ ...res, psp: 'monnify' })}
+              onError={handlePSPError}
               onClose={handlePSPClose}
             />
           );
-
         case 'mpesa':
-          // M-Pesa uses STK Push via API endpoint
           return (
             <MPesaBridge
               apiEndpoint={`${apiBaseUrl || 'https://api.reevit.io'}/v1/payments/${paymentIntent?.id}/mpesa`}
@@ -481,24 +485,10 @@ export function ReevitCheckout({
               reference={paymentIntent?.reference || reference || `mpesa_${Date.now()}`}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
               headers={{ 'x-reevit-public-key': publicKey }}
-              onSuccess={(result) => handlePSPSuccess({
-                paymentId: result.transactionId,
-                reference: result.reference,
-                amount: paymentIntent?.amount ?? amount,
-                currency: paymentIntent?.currency ?? currency,
-                paymentMethod: 'mobile_money',
-                psp: 'mpesa',
-                pspReference: result.transactionId,
-                status: 'success',
-              })}
-              onError={(err) => handlePSPError({
-                code: err.code,
-                message: err.message,
-                recoverable: true
-              })}
+              onSuccess={handlePSPSuccess}
+              onError={handlePSPError}
             />
           );
-
         case 'stripe':
           return (
             <StripeBridge
@@ -506,82 +496,115 @@ export function ReevitCheckout({
               clientSecret={paymentIntent?.clientSecret || ''}
               amount={paymentIntent?.amount ?? amount}
               currency={paymentIntent?.currency ?? currency}
-              onSuccess={(result) => handlePSPSuccess({
-                paymentId: result.paymentIntentId,
-                reference: paymentIntent?.reference || reference || result.paymentIntentId,
-                amount: paymentIntent?.amount ?? amount,
-                currency: paymentIntent?.currency ?? currency,
-                paymentMethod: selectedMethod || 'card',
-                psp: 'stripe',
-                pspReference: result.paymentIntentId,
-                status: result.status === 'succeeded' ? 'success' : 'pending',
-              })}
-              onError={(err) => handlePSPError({
-                code: err.code,
-                message: err.message,
-                recoverable: true
-              })}
+              onSuccess={handlePSPSuccess}
+              onError={handlePSPError}
               onCancel={handlePSPClose}
             />
           );
-
         default:
-          // Unsupported PSP - show error with option to retry
           return (
             <div className="reevit-error">
               <div className="reevit-error__icon">⚠️</div>
-              <h3>Payment Provider Not Supported</h3>
-              <p>The selected payment provider ({psp}) is not currently supported in this checkout.</p>
-              <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>
-                Go Back
-              </button>
+              <h3>Provider Not Supported</h3>
+              <p>Provider ({psp}) is not supported.</p>
+              <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>Go Back</button>
             </div>
           );
       }
     }
 
+    const renderMethodContent = (provider: string, method: PaymentMethod) => {
+      const pspLower = provider.toLowerCase();
+      const needsPhone = pspLower.includes('mpesa');
 
-    // Mobile money form
-    if (selectedMethod === 'mobile_money' && !showPSPBridge) {
+      if (method === 'card') {
+        return (
+          <div className="reevit-inline-action reevit-animate-fade-in">
+            <p className="reevit-inline-action__hint">You'll be redirected to complete your card payment securely.</p>
+            <button className="reevit-btn reevit-btn--primary" onClick={handleContinue} disabled={isLoading}>Pay with Card</button>
+          </div>
+        );
+      }
+
+      if (method === 'mobile_money') {
+        if (needsPhone && !phone) {
+          return (
+            <div className="reevit-inline-action reevit-animate-fade-in">
+              <MobileMoneyForm onSubmit={handleMomoSubmit} onCancel={handleBack} isLoading={isLoading} initialPhone={phone} hideCancel />
+            </div>
+          );
+        }
+        return (
+          <div className="reevit-inline-action reevit-animate-fade-in">
+            <p className="reevit-inline-action__hint">
+              {pspLower.includes('hubtel')
+                ? 'Opens the Hubtel checkout with Mobile Money selected.'
+                : `Continue to pay securely with Mobile Money via ${pspNames[pspLower] || pspLower.charAt(0).toUpperCase() + pspLower.slice(1)}.`}
+            </p>
+            <button className="reevit-btn reevit-btn--primary" onClick={handleContinue} disabled={isLoading}>
+              {pspLower.includes('hubtel') ? 'Continue with Hubtel' : 'Pay with Mobile Money'}
+            </button>
+          </div>
+        );
+      }
+      return null;
+    };
+
+    if (providerOptions.length > 1) {
       return (
-        <MobileMoneyForm
-          onSubmit={handleMomoSubmit}
-          onCancel={handleBack}
-          isLoading={isLoading}
-          initialPhone={phone}
-        />
-      );
-    }
-
-    // Method selection
-    return (
-      <div className="reevit-method-step">
-        {providerOptions.length > 1 && (
+        <div className="reevit-method-step reevit-animate-slide-up">
           <ProviderSelector
             providers={providerOptions}
             selectedProvider={selectedProvider}
             onSelect={handleProviderSelect}
             disabled={isLoading}
+            theme={resolvedTheme}
+            selectedMethod={selectedMethod}
+            onMethodSelect={handleMethodSelect}
+            renderMethodContent={renderMethodContent}
           />
-        )}
+        </div>
+      );
+    }
 
+    return (
+      <div className="reevit-method-step reevit-animate-slide-up">
         <PaymentMethodSelector
           methods={availableMethods}
           selectedMethod={selectedMethod}
           onSelect={handleMethodSelect}
           disabled={isLoading}
-          provider={activeProvider?.provider || psp}
+          provider={psp}
+          layout="list"
+          showLabel={false}
         />
 
-        {selectedMethod && selectedMethod !== 'mobile_money' && (
-          <div className="reevit-method-step__actions">
-            <button
-              className="reevit-btn reevit-btn--primary"
-              onClick={handleContinue}
-              disabled={isLoading}
-            >
-              Continue
-            </button>
+        {selectedMethod && (
+          <div className="reevit-method-step__actions reevit-animate-slide-up">
+            {selectedMethod === 'mobile_money' && pspLower.includes('mpesa') && !phone ? (
+              <MobileMoneyForm onSubmit={handleMomoSubmit} onCancel={() => selectMethod(null as any)} isLoading={isLoading} initialPhone={phone} />
+            ) : (
+              <div className="reevit-card-info reevit-animate-fade-in">
+                <p className="reevit-info-text">
+                  {selectedMethod === 'card'
+                    ? 'You will be redirected to complete your card payment securely.'
+                    : pspLower.includes('hubtel')
+                      ? 'Opens the Hubtel checkout with Mobile Money selected.'
+                      : `Continue to pay securely via ${pspNames[pspLower] || pspLower.charAt(0).toUpperCase() + pspLower.slice(1)}.`}
+                </p>
+                <button
+                  className="reevit-btn reevit-btn--primary"
+                  onClick={handleContinue}
+                  disabled={isLoading}
+                >
+                  {selectedMethod === 'card'
+                    ? 'Pay with Card'
+                    : pspLower.includes('hubtel')
+                      ? 'Continue with Hubtel'
+                      : 'Pay with Mobile Money'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -602,42 +625,24 @@ export function ReevitCheckout({
             role="dialog"
             aria-modal="true"
           >
-            {/* Header */}
             <div className="reevit-modal__header">
               <div className="reevit-modal__branding">
-                <img
-                  src="https://i.imgur.com/bzUR5Lm.png"
-                  alt="Reevit"
-                  className="reevit-modal__logo"
-                />
+                <img src={resolvedTheme?.logoUrl || "https://i.imgur.com/bzUR5Lm.png"} alt="Checkout" className="reevit-modal__logo" />
               </div>
-              <button
-                className="reevit-modal__close"
-                onClick={handleClose}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+              <button className="reevit-modal__close" onClick={handleClose} aria-label="Close">✕</button>
             </div>
 
-            {/* Amount display */}
             <div className="reevit-modal__amount">
               <span className="reevit-modal__amount-label">Amount</span>
-              <span className="reevit-modal__amount-value">
-                {formatAmount(amount, currency)}
-              </span>
+              <span className="reevit-modal__amount-value">{formatAmount(amount, currency)}</span>
             </div>
 
-            {/* Content */}
             <div className="reevit-modal__content">
               {renderContent()}
             </div>
 
-            {/* Footer */}
             <div className="reevit-modal__footer">
-              <span className="reevit-modal__secured">
-                🔒 Secured by Reevit
-              </span>
+              <span className="reevit-modal__secured">🔒 Secured by Reevit</span>
             </div>
           </div>
         </div>

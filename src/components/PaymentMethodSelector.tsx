@@ -12,6 +12,8 @@ interface PaymentMethodSelectorProps {
   onSelect: (method: PaymentMethod) => void;
   disabled?: boolean;
   provider?: string;
+  layout?: 'grid' | 'list';
+  showLabel?: boolean;
 }
 
 // Human-readable PSP names
@@ -52,15 +54,11 @@ export function PaymentMethodSelector({
   onSelect,
   disabled = false,
   provider,
+  layout = 'list',
+  showLabel = true,
 }: PaymentMethodSelectorProps) {
   const getMethodLabel = (method: PaymentMethod, psp?: string): string => {
     const config = methodConfig[method];
-
-    // For Hubtel, show "Pay with Hubtel" instead of card/mobile_money options
-    if (psp?.toLowerCase().includes("hubtel") && method === "mobile_money") {
-      return `Pay with ${pspNames[psp.toLowerCase()] || "Hubtel"}`;
-    }
-
     return config.label;
   };
 
@@ -69,17 +67,22 @@ export function PaymentMethodSelector({
 
     // Hubtel handles everything internally, no need for extra description
     if (psp?.toLowerCase().includes("hubtel")) {
-      return "Card, Mobile Money, and Bank Transfer";
+      return config.description;
     }
 
     return config.description;
   };
 
+  const isGrid = layout === 'grid';
+
   return (
-    <div className="reevit-method-selector">
-      <div className="reevit-method-selector__label">Select payment method</div>
-      <div className="reevit-method-selector__options">
-        {methods.map((method) => {
+    <div className={cn("reevit-method-selector", isGrid && "reevit-method-selector--grid")}>
+      {showLabel && <div className="reevit-method-selector__label">Select payment method</div>}
+      <div className={cn(
+        "reevit-method-selector__options",
+        isGrid ? "reevit-method-selector__options--grid" : "reevit-method-selector__options--list"
+      )}>
+        {methods.map((method, index) => {
           const config = methodConfig[method];
           const isSelected = selectedMethod === method;
           const methodLabel = getMethodLabel(method, provider);
@@ -91,30 +94,39 @@ export function PaymentMethodSelector({
               type="button"
               className={cn(
                 "reevit-method-option",
+                isGrid ? "reevit-method-option--grid" : "reevit-method-option--list",
                 isSelected && "reevit-method-option--selected",
                 disabled && "reevit-method-option--disabled",
               )}
+              style={{
+                animationDelay: `${index * 0.05}s`
+              }}
               onClick={() => onSelect(method)}
               disabled={disabled}
               aria-pressed={isSelected}
             >
-              <span className="reevit-method-option__icon">{config.icon}</span>
+              <span className="reevit-method-option__icon-wrapper">
+                <span className="reevit-method-option__icon">{config.icon}</span>
+              </span>
               <div className="reevit-method-option__content">
                 <span className="reevit-method-option__label">{methodLabel}</span>
-                <span className="reevit-method-option__description">
-                  {methodDescription}
-                </span>
+                {!isGrid && (
+                  <span className="reevit-method-option__description">
+                    {methodDescription}
+                  </span>
+                )}
               </div>
-              {isSelected && (
+              {!isGrid && isSelected && (
                 <span className="reevit-method-option__check">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path
-                      d="M16.667 5L7.5 14.167 3.333 10"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+              )}
+              {!isGrid && !isSelected && (
+                <span className="reevit-method-option__chevron">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
                   </svg>
                 </span>
               )}
