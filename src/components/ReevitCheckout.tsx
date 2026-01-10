@@ -51,8 +51,11 @@ export function ReevitCheckout({
   currency,
   email = '',
   phone = '',
+  customerName,
   reference,
   metadata,
+  customFields,
+  paymentLinkCode,
   paymentMethods = ['card', 'mobile_money'],
   initialPaymentIntent,
   // Callbacks
@@ -106,8 +109,11 @@ export function ReevitCheckout({
       currency,
       email,
       phone,
+      customerName,
       reference,
       metadata,
+      customFields,
+      paymentLinkCode,
       paymentMethods,
       initialPaymentIntent,
     },
@@ -398,7 +404,7 @@ export function ReevitCheckout({
 
     // PSP Bridge
     if (showPSPBridge) {
-      const pspKey = paymentIntent?.pspPublicKey || publicKey;
+    const pspKey = paymentIntent?.pspPublicKey || publicKey || '';
       const bridgeMetadata = {
         ...metadata,
         payment_id: paymentIntent?.id,
@@ -437,6 +443,8 @@ export function ReevitCheckout({
               phone={momoData?.phone || phone}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
               hubtelSessionToken={paymentIntent?.id ? paymentIntent.id : undefined}
+              clientSecret={paymentIntent?.clientSecret}
+              apiBaseUrl={apiBaseUrl}
               preferredMethod={selectedMethod || undefined}
               onSuccess={handlePSPSuccess}
               onError={(err: PaymentError) => handlePSPError(err)}
@@ -484,7 +492,7 @@ export function ReevitCheckout({
               currency={paymentIntent?.currency ?? currency}
               reference={paymentIntent?.reference || reference || `mpesa_${Date.now()}`}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
-              headers={{ 'x-reevit-public-key': publicKey }}
+              headers={{ 'x-reevit-public-key': publicKey || '' }}
               onSuccess={handlePSPSuccess}
               onError={handlePSPError}
             />
@@ -612,7 +620,7 @@ export function ReevitCheckout({
   };
 
   return (
-    <ReevitContext.Provider value={{ publicKey, amount, currency }}>
+    <ReevitContext.Provider value={{ publicKey: publicKey || '', amount, currency }}>
       {trigger}
 
       {isOpen && (

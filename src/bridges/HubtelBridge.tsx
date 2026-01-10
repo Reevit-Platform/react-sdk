@@ -14,7 +14,7 @@ import { createReevitClient } from '../api/client';
 
 interface HubtelBridgeProps {
   paymentId: string;
-  publicKey: string;
+  publicKey?: string;
   merchantAccount: string | number;
   amount: number;
   currency?: string;
@@ -23,6 +23,8 @@ interface HubtelBridgeProps {
   phone?: string;
   description?: string;
   callbackUrl?: string;
+  apiBaseUrl?: string;
+  clientSecret?: string;
   /** Session token from server (recommended - credentials never exposed to client) */
   hubtelSessionToken?: string;
   /** Basic auth credential (legacy - credentials exposed to client, deprecated) */
@@ -43,6 +45,8 @@ export function HubtelBridge({
   phone,
   description = 'Payment',
   callbackUrl,
+  apiBaseUrl,
+  clientSecret,
   hubtelSessionToken,
   basicAuth,
   preferredMethod,
@@ -55,6 +59,11 @@ export function HubtelBridge({
   const checkoutRef = useRef<InstanceType<typeof CheckoutSdk> | null>(null);
   const [authValue, setAuthValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [resolvedMerchantAccount, setResolvedMerchantAccount] = useState<string | number>(merchantAccount);
+
+  useEffect(() => {
+    setResolvedMerchantAccount(merchantAccount);
+  }, [merchantAccount]);
 
   // Fetch session token if provided, otherwise use basicAuth
   useEffect(() => {
@@ -63,8 +72,8 @@ export function HubtelBridge({
       if (hubtelSessionToken) {
         setIsLoading(true);
         try {
-          const client = createReevitClient({ publicKey });
-          const { data, error } = await client.createHubtelSession(paymentId);
+          const client = createReevitClient({ publicKey, baseUrl: apiBaseUrl });
+          const { data, error } = await client.createHubtelSession(paymentId, clientSecret);
           if (error) {
             onError({
               code: 'SESSION_ERROR',
@@ -77,6 +86,9 @@ export function HubtelBridge({
             // The session response contains basicAuth encoded in the token
             // We need to use it with the Hubtel SDK
             setAuthValue(data.token);
+            if (data.merchantAccount) {
+              setResolvedMerchantAccount(data.merchantAccount);
+            }
           }
         } catch (err) {
           onError({
@@ -95,7 +107,7 @@ export function HubtelBridge({
     };
 
     fetchAuth();
-  }, [paymentId, publicKey, hubtelSessionToken, basicAuth, onError]);
+  }, [paymentId, publicKey, apiBaseUrl, clientSecret, hubtelSessionToken, basicAuth, onError]);
 
   const startPayment = useCallback(async () => {
     // Wait for auth to be loaded
@@ -122,7 +134,9 @@ export function HubtelBridge({
       const config = {
         branding: 'enabled' as const,
         callbackUrl: callbackUrl || window.location.href,
-        merchantAccount: typeof merchantAccount === 'string' ? parseInt(merchantAccount, 10) : merchantAccount,
+        merchantAccount: typeof resolvedMerchantAccount === 'string'
+          ? parseInt(resolvedMerchantAccount, 10)
+          : resolvedMerchantAccount,
         // Use session token or basicAuth for authentication
         // Session tokens are base64-encoded credentials fetched securely from the server
         basicAuth: authValue || '',

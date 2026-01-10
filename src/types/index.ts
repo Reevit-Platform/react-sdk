@@ -13,8 +13,8 @@ export type PaymentSource = 'payment_link' | 'api' | 'subscription';
 
 // Checkout configuration
 export interface ReevitCheckoutConfig {
-  /** Your Reevit public key (pk_live_xxx or pk_test_xxx) */
-  publicKey: string;
+  /** Your Reevit public key (required for API-created intents; omit for payment links) */
+  publicKey?: string;
   /** Amount in the smallest currency unit (e.g., pesewas for GHS) */
   amount: number;
   /** Currency code (e.g., 'GHS', 'NGN', 'USD') */
@@ -23,10 +23,16 @@ export interface ReevitCheckoutConfig {
   email?: string;
   /** Customer phone number (required for mobile money) */
   phone?: string;
+  /** Customer name (optional, used for payment links) */
+  customerName?: string;
   /** Unique reference for this transaction */
   reference?: string;
   /** Additional metadata to attach to the payment */
   metadata?: Record<string, unknown>;
+  /** Custom fields for payment links (if applicable) */
+  customFields?: Record<string, unknown>;
+  /** Payment link code (for public checkout flows) */
+  paymentLinkCode?: string;
   /** Payment methods to display */
   paymentMethods?: PaymentMethod[];
   /** Optional existing payment intent to use instead of creating a new one */

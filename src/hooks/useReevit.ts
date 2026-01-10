@@ -46,6 +46,20 @@ const initialState: ReevitState = {
   result: null,
 };
 
+const DEFAULT_PUBLIC_API_BASE_URL = 'https://api.reevit.io';
+
+function buildPaymentLinkError(response: Response, data: any): PaymentError {
+  return {
+    code: data?.code || 'payment_link_error',
+    message: data?.message || 'Payment link request failed',
+    recoverable: true,
+    details: {
+      httpStatus: response.status,
+      ...(data?.details || {}),
+    },
+  };
+}
+
 // Reducer
 function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
   switch (action.type) {
@@ -232,16 +246,50 @@ export function useReevit(options: UseReevitOptions) {
         // Select payment method to send to backend
         const paymentMethod = method || config.paymentMethods?.[0] || 'card';
 
-        // Call the Reevit API to create a payment intent
-        const { data, error } = await apiClient.createPaymentIntent(
-          { ...config, reference },
-          paymentMethod,
-          country,
-          {
-            preferredProviders: options?.preferredProvider ? [options.preferredProvider] : undefined,
-            allowedProviders: options?.allowedProviders,
+        let data: PaymentIntentResponse | undefined;
+        let error: PaymentError | undefined;
+
+        if (config.paymentLinkCode) {
+          const response = await fetch(
+            `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/pay/${config.paymentLinkCode}/pay`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Idempotency-Key': `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
+              },
+              body: JSON.stringify({
+                amount: config.amount,
+                email: config.email || '',
+                name: config.customerName || '',
+                phone: config.phone || '',
+                method: paymentMethod,
+                country,
+                provider: options?.preferredProvider || options?.allowedProviders?.[0],
+                custom_fields: config.customFields,
+              }),
+            }
+          );
+
+          const responseData = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            error = buildPaymentLinkError(response, responseData);
+          } else {
+            data = responseData as PaymentIntentResponse;
           }
-        );
+        } else {
+          const result = await apiClient.createPaymentIntent(
+            { ...config, reference },
+            paymentMethod,
+            country,
+            {
+              preferredProviders: options?.preferredProvider ? [options.preferredProvider] : undefined,
+              allowedProviders: options?.allowedProviders,
+            }
+          );
+          data = result.data;
+          error = result.error;
+        }
 
         if (error) {
           dispatch({ type: 'INIT_ERROR', payload: error });

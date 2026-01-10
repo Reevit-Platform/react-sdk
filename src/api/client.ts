@@ -102,7 +102,7 @@ export interface APIErrorResponse {
 // API Client configuration
 export interface ReevitAPIClientConfig {
   /** Your Reevit public key */
-  publicKey: string;
+  publicKey?: string;
   /** Base URL for the Reevit API (defaults to production) */
   baseUrl?: string;
   /** Request timeout in milliseconds */
@@ -148,8 +148,8 @@ export class ReevitAPIClient {
   private readonly timeout: number;
 
   constructor(config: ReevitAPIClientConfig) {
-    this.publicKey = config.publicKey;
-    this.baseUrl = config.baseUrl || (isSandboxKey(config.publicKey)
+    this.publicKey = config.publicKey || '';
+    this.baseUrl = config.baseUrl || (config.publicKey && isSandboxKey(config.publicKey)
       ? API_BASE_URL_SANDBOX
       : API_BASE_URL_PRODUCTION);
     this.timeout = config.timeout || DEFAULT_TIMEOUT;
@@ -169,10 +169,12 @@ export class ReevitAPIClient {
     // Generate idempotency key for POST requests
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-Reevit-Key': this.publicKey,
       'X-Reevit-Client': '@reevit/react',
       'X-Reevit-Client-Version': '0.3.2',
     };
+    if (this.publicKey) {
+      headers['X-Reevit-Key'] = this.publicKey;
+    }
 
     // Add idempotency key for mutating requests
     if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
@@ -304,8 +306,12 @@ export class ReevitAPIClient {
    * @param paymentId - The payment intent ID for Hubtel checkout
    * @returns Hubtel session with token, merchant account, and expiry information
    */
-  async createHubtelSession(paymentId: string): Promise<{ data?: HubtelSessionResponse; error?: PaymentError }> {
-    return this.request<HubtelSessionResponse>('POST', `/v1/payments/hubtel/sessions/${paymentId}`);
+  async createHubtelSession(
+    paymentId: string,
+    clientSecret?: string
+  ): Promise<{ data?: HubtelSessionResponse; error?: PaymentError }> {
+    const query = clientSecret ? `?client_secret=${encodeURIComponent(clientSecret)}` : '';
+    return this.request<HubtelSessionResponse>('POST', `/v1/payments/hubtel/sessions/${paymentId}${query}`);
   }
 
   /**
