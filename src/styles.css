@@ -373,6 +373,38 @@
   border-bottom: none;
 }
 
+/* Back button */
+.reevit-psp-back-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--reevit-radius-sm);
+  color: var(--reevit-text-secondary);
+  font-family: var(--reevit-font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reevit-psp-back-button:hover {
+  background: var(--reevit-border);
+  color: var(--reevit-text);
+}
+
+.reevit-psp-back-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reevit-psp-back-button svg {
+  flex-shrink: 0;
+}
+
 /* ===== PAYMENT METHOD SELECTOR ===== */
 .reevit-method-selector {
   margin-bottom: 16px;
@@ -797,6 +829,89 @@
   gap: 12px;
 }
 
+/* Success icon wrapper */
+.reevit-success__icon-wrapper {
+  margin-bottom: 8px;
+}
+
+.reevit-success__icon-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--reevit-success), #10b981);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: reevit-pop 0.4s ease-out;
+  box-shadow: 0 8px 24px -8px var(--reevit-success);
+}
+
+.reevit-success__checkmark {
+  width: 40px;
+  height: 40px;
+}
+
+.reevit-success__checkmark-circle {
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 2;
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  animation: reevit-stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.reevit-success__checkmark-check {
+  stroke: white;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: reevit-stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.4s forwards;
+}
+
+@keyframes reevit-stroke {
+  100% { stroke-dashoffset: 0; }
+}
+
+.reevit-success__title {
+  font-size: 18px !important;
+  font-weight: 600;
+  color: var(--reevit-text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.reevit-success__amount {
+  font-size: 24px !important;
+  font-weight: 700;
+  color: var(--reevit-success);
+  margin: 4px 0 !important;
+  letter-spacing: -0.02em;
+}
+
+.reevit-success__reference {
+  font-size: 12px !important;
+  color: var(--reevit-text-secondary);
+  margin: 0 !important;
+  font-family: monospace;
+  background: var(--reevit-border);
+  padding: 6px 12px;
+  border-radius: var(--reevit-radius-sm);
+}
+
+.reevit-success__redirect {
+  font-size: 11px !important;
+  color: var(--reevit-muted);
+  margin-top: 8px !important;
+  animation: reevit-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes reevit-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Legacy success icon (fallback) */
 .reevit-success__icon {
   width: 48px;
   height: 48px;

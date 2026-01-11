@@ -55,6 +55,16 @@ const methodConfig: Record<
     icon: "🏦",
     description: "Pay directly from your bank account",
   },
+  apple_pay: {
+    label: "Apple Pay",
+    icon: "🍎",
+    description: "Pay with Apple Pay",
+  },
+  google_pay: {
+    label: "Google Pay",
+    icon: "🤖",
+    description: "Pay with Google Pay",
+  },
 };
 
 export function PaymentMethodSelector({

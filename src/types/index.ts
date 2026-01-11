@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export type ReevitReactNode = ReactNode;
 
 // Payment method types
-export type PaymentMethod = 'card' | 'mobile_money' | 'bank_transfer';
+export type PaymentMethod = 'card' | 'mobile_money' | 'bank_transfer' | 'apple_pay' | 'google_pay';
 
 export type MobileMoneyNetwork = 'mtn' | 'vodafone' | 'airteltigo';
 

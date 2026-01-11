@@ -120,10 +120,10 @@ export function ReevitCheckout({
     apiBaseUrl,
     onSuccess: (result) => {
       onSuccess?.(result);
-      // Keep modal open briefly to show success
+      // Keep modal open for 5 seconds to show success screen
       setTimeout(() => {
         setIsOpen(false);
-      }, 2000);
+      }, 5000);
     },
     onError,
     onClose: () => {
@@ -409,9 +409,18 @@ export function ReevitCheckout({
     if (status === 'success' && result) {
       return (
         <div className="reevit-success reevit-animate-scale-in">
-          <div className="reevit-success__icon">✓</div>
-          <h3>Payment Successful</h3>
-          <p>Reference: {result.reference}</p>
+          <div className="reevit-success__icon-wrapper">
+            <div className="reevit-success__icon-circle">
+              <svg className="reevit-success__checkmark" viewBox="0 0 52 52">
+                <circle className="reevit-success__checkmark-circle" cx="26" cy="26" r="25" fill="none" />
+                <path className="reevit-success__checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+              </svg>
+            </div>
+          </div>
+          <h3 className="reevit-success__title">Payment Successful!</h3>
+          <p className="reevit-success__amount">{formatAmount(amount, currency)}</p>
+          <p className="reevit-success__reference">Reference: {result.reference}</p>
+          <p className="reevit-success__redirect">Redirecting in a moment...</p>
         </div>
       );
     }

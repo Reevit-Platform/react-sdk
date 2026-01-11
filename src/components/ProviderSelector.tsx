@@ -41,12 +41,16 @@ const methodLabels: Record<PaymentMethod, string> = {
   card: "Card",
   mobile_money: "Mobile Money",
   bank_transfer: "Bank Transfer",
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
 };
 
 const methodIcons: Record<PaymentMethod, string> = {
   card: "💳",
   mobile_money: "📱",
   bank_transfer: "🏦",
+  apple_pay: "🍎",
+  google_pay: "🤖",
 };
 
 function formatMethods(methods: PaymentMethod[]): string {
@@ -133,6 +137,19 @@ export function ProviderSelector({
                     borderTop: `1px solid ${theme.selectedBorderColor}`,
                   } : undefined}
                 >
+                  {/* Back button */}
+                  <button
+                    type="button"
+                    className="reevit-psp-back-button"
+                    onClick={() => onSelect('')}
+                    disabled={disabled}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Back to providers</span>
+                  </button>
+
                   <div className="reevit-psp-methods">
                     <PaymentMethodSelector
                       methods={providerMethods}

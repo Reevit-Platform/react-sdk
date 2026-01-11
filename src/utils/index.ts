@@ -234,15 +234,19 @@ export function getMethodLogos(country: string, method: string): string[] {
 
   // CDN-hosted logos (using reliable sources)
   const LOGOS = {
+    // Card logos from Stripe CDN (reliable)
     visa: 'https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg',
     mastercard: 'https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg',
     amex: 'https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg',
-    apple_pay: 'https://js.stripe.com/v3/fingerprinted/img/apple_pay_mark-ea40d9a0f83ff6c94c3aa5c2c1ba4427.svg',
-    google_pay: 'https://js.stripe.com/v3/fingerprinted/img/google_pay_mark-ed0c5a85e00a6e95f57a3c89e9d2a69c.svg',
-    mtn: 'https://play-lh.googleusercontent.com/WdLBv6Ck6Xk4VJQvPxODXXjLNmxEGHDnXML_TVqWOBBzXpWLV1K3xXlStCfFLrl0Tw=w240-h480-rw',
-    vodafone: 'https://play-lh.googleusercontent.com/cTpsmMl_ZXKvPLKWwCvC0VaKgT1ISyH0fNDgVbXHMGJl4PYvGMnlFFe8Kj3vTqz0Xg=w240-h480-rw',
-    airtel: 'https://play-lh.googleusercontent.com/Mh2OxhKPKMfxCn2Y7J3gD3TLvkvOeFXwPLLGqrDHD5qJ5le_ph7Y6PmfwwZKJMZWcYU=w240-h480-rw',
-    mpesa: 'https://play-lh.googleusercontent.com/2wd-PssHqg1Xv0HnKzH7ecFfozXo_vr5M-Hf7k7X7kqxMGqj5PmKWnFhTqCYXCPCAYE=w240-h480-rw',
+    // Wallet logos from reliable sources (Wikimedia thumbnails for best performance/reliability)
+    apple_pay: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/256px-Apple_Pay_logo.svg.png',
+    google_pay: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Google_Pay_Logo_%282020%29.svg/256px-Google_Pay_Logo_%282020%29.svg.png',
+    // Mobile money logos (Wikimedia public domain assets)
+    mtn: 'https://cdn.brandfetch.io/idtdXB-ogi/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1667849059567',
+    vodafone: 'https://cdn.brandfetch.io/id6HZwtapX/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1727707076252',
+    airtel: 'https://cdn.brandfetch.io/idvMDbAci6/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1684941044634',
+    mpesa: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO-01.svg/2560px-M-PESA_LOGO-01.svg.png',
+    telecel: 'https://cdn.brandfetch.io/idW-TDK3Zv/w/110/h/88/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1668075554810',
   };
 
   if (method === 'card') {
@@ -253,7 +257,7 @@ export function getMethodLogos(country: string, method: string): string[] {
   if (method === 'google_pay') return [LOGOS.google_pay];
 
   if (method === 'mobile_money') {
-    if (c === 'GH') return [LOGOS.mtn, LOGOS.vodafone, LOGOS.airtel];
+    if (c === 'GH') return [LOGOS.mtn, LOGOS.telecel, LOGOS.airtel];
     if (c === 'KE') return [LOGOS.mpesa, LOGOS.airtel];
     if (c === 'NG') return [LOGOS.mtn, LOGOS.airtel];
     return [LOGOS.mtn];
