@@ -122,22 +122,16 @@ export interface PaymentError {
 
 // Theme customization
 export interface ReevitTheme {
-  /** Primary brand color */
+  /** Primary color (main text, headings, important elements) */
   primaryColor?: string;
-  /** Primary text color on brand surfaces */
+  /** Primary foreground color (sub text, descriptions, muted elements) */
   primaryForegroundColor?: string;
-  /** Background color */
+  /** Background color (applies to entire checkout: header, body, footer) */
   backgroundColor?: string;
-  /** Surface color for cards/panels */
-  surfaceColor?: string;
-  /** Text color */
-  textColor?: string;
-  /** Muted text color */
-  mutedTextColor?: string;
+  /** Border color (borders, dividers) */
+  borderColor?: string;
   /** Border radius for inputs and buttons */
   borderRadius?: string;
-  /** Font family to use */
-  fontFamily?: string;
   /** Whether to use dark mode */
   darkMode?: boolean;
   /** Custom logo URL to display in checkout header */
@@ -152,6 +146,14 @@ export interface ReevitTheme {
   pspSelectorBorderColor?: string;
   /** Use border-only style for PSP selector (no filled background) */
   pspSelectorUseBorder?: boolean;
+  /** Selected PSP background color */
+  selectedBackgroundColor?: string;
+  /** Selected PSP primary text color */
+  selectedTextColor?: string;
+  /** Selected PSP description/muted text color */
+  selectedDescriptionColor?: string;
+  /** Selected PSP border color */
+  selectedBorderColor?: string;
 }
 
 // PSP configuration (internal)
@@ -168,6 +170,15 @@ export interface CheckoutProviderOption {
   name: string;
   methods: PaymentMethod[];
   countries?: string[];
+  /** Brand colors for selected state styling */
+  branding?: {
+    /** Background color when selected */
+    backgroundColor?: string;
+    /** Primary/accent color */
+    primaryColor?: string;
+    /** Text color on primary background */
+    primaryForegroundColor?: string;
+  };
 }
 
 // Mobile money form data
@@ -208,7 +219,7 @@ export interface PaymentIntent {
   /** Currency code */
   currency: string;
   /** Payment status */
-  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+  status: 'pending' | 'requires_action' | 'processing' | 'succeeded' | 'failed' | 'canceled' | 'cancelled';
   /** Recommended PSP based on routing rules */
   recommendedPsp: 'paystack' | 'hubtel' | 'flutterwave' | 'monnify' | 'mpesa' | 'stripe';
   /** Available payment methods for this intent */

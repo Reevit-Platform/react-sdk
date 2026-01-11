@@ -162,3 +162,102 @@ function getContrastingColor(color: string): string | null {
 export function cn(...classes: (string | undefined | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
+/**
+ * Get default brand colors for a PSP
+ */
+export function getPspBrandColors(provider: string): { backgroundColor: string; primaryColor: string; primaryForegroundColor: string } {
+  const p = provider.toLowerCase();
+
+  const brandColors: Record<string, { backgroundColor: string; primaryColor: string; primaryForegroundColor: string }> = {
+    paystack: {
+      backgroundColor: '#E8F5F0',
+      primaryColor: '#00C3A0',
+      primaryForegroundColor: '#FFFFFF',
+    },
+    hubtel: {
+      backgroundColor: '#E8F5EC',
+      primaryColor: '#00A651',
+      primaryForegroundColor: '#FFFFFF',
+    },
+    flutterwave: {
+      backgroundColor: '#FFF5E6',
+      primaryColor: '#F5A623',
+      primaryForegroundColor: '#000000',
+    },
+    stripe: {
+      backgroundColor: '#EEF0FF',
+      primaryColor: '#635BFF',
+      primaryForegroundColor: '#FFFFFF',
+    },
+    monnify: {
+      backgroundColor: '#FFF0E6',
+      primaryColor: '#FF6B00',
+      primaryForegroundColor: '#FFFFFF',
+    },
+    mpesa: {
+      backgroundColor: '#E8F5E9',
+      primaryColor: '#4CAF50',
+      primaryForegroundColor: '#FFFFFF',
+    },
+  };
+
+  return brandColors[p] || {
+    backgroundColor: '#F5F5F5',
+    primaryColor: '#333333',
+    primaryForegroundColor: '#FFFFFF',
+  };
+}
+
+/**
+ * Get country code from currency
+ */
+export function getCountryFromCurrency(currency: string): string {
+  const currencyToCountry: Record<string, string> = {
+    GHS: 'GH',
+    NGN: 'NG',
+    KES: 'KE',
+    ZAR: 'ZA',
+    USD: 'US',
+    GBP: 'GB',
+    EUR: 'EU',
+  };
+  return currencyToCountry[currency.toUpperCase()] || 'GH';
+}
+
+/**
+ * Get dynamic payment method logos based on country and method
+ * Returns URLs to logo images that should be displayed for the payment method
+ */
+export function getMethodLogos(country: string, method: string): string[] {
+  const c = country.toUpperCase();
+
+  // CDN-hosted logos (using reliable sources)
+  const LOGOS = {
+    visa: 'https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg',
+    mastercard: 'https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg',
+    amex: 'https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg',
+    apple_pay: 'https://js.stripe.com/v3/fingerprinted/img/apple_pay_mark-ea40d9a0f83ff6c94c3aa5c2c1ba4427.svg',
+    google_pay: 'https://js.stripe.com/v3/fingerprinted/img/google_pay_mark-ed0c5a85e00a6e95f57a3c89e9d2a69c.svg',
+    mtn: 'https://play-lh.googleusercontent.com/WdLBv6Ck6Xk4VJQvPxODXXjLNmxEGHDnXML_TVqWOBBzXpWLV1K3xXlStCfFLrl0Tw=w240-h480-rw',
+    vodafone: 'https://play-lh.googleusercontent.com/cTpsmMl_ZXKvPLKWwCvC0VaKgT1ISyH0fNDgVbXHMGJl4PYvGMnlFFe8Kj3vTqz0Xg=w240-h480-rw',
+    airtel: 'https://play-lh.googleusercontent.com/Mh2OxhKPKMfxCn2Y7J3gD3TLvkvOeFXwPLLGqrDHD5qJ5le_ph7Y6PmfwwZKJMZWcYU=w240-h480-rw',
+    mpesa: 'https://play-lh.googleusercontent.com/2wd-PssHqg1Xv0HnKzH7ecFfozXo_vr5M-Hf7k7X7kqxMGqj5PmKWnFhTqCYXCPCAYE=w240-h480-rw',
+  };
+
+  if (method === 'card') {
+    return [LOGOS.visa, LOGOS.mastercard];
+  }
+
+  if (method === 'apple_pay') return [LOGOS.apple_pay];
+  if (method === 'google_pay') return [LOGOS.google_pay];
+
+  if (method === 'mobile_money') {
+    if (c === 'GH') return [LOGOS.mtn, LOGOS.vodafone, LOGOS.airtel];
+    if (c === 'KE') return [LOGOS.mpesa, LOGOS.airtel];
+    if (c === 'NG') return [LOGOS.mtn, LOGOS.airtel];
+    return [LOGOS.mtn];
+  }
+
+  return [];
+}

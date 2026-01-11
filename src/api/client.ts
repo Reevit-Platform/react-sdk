@@ -33,6 +33,11 @@ export interface PaymentIntentResponse {
   status: string;
   client_secret: string;
   psp_public_key?: string;
+  psp_credentials?: {
+    merchantAccount?: string | number;
+    basicAuth?: string;
+    [key: string]: unknown;
+  };
   amount: number;
   currency: string;
   fee_amount: number;
