@@ -1,3 +1,28 @@
+# @reevit/react v0.5.0
+
+**Release Date:** January 11, 2026
+
+## 🚀 New Features
+
+### Apple Pay & Google Pay Support
+- Added `apple_pay` and `google_pay` as supported payment methods.
+- Included localized logos for Apple Pay and Google Pay.
+
+### Local Asset Bundling
+- Switched from CDN-hosted logos to local bundled assets for better performance and privacy.
+- Added `resolveAssetSrc` utility for handling both local and remote assets.
+
+### Success Screen Customization
+- Added `successDelayMs` prop to `ReevitCheckout` to control how long the success screen is displayed before closing (default: 5000ms).
+
+## 📦 Install / Upgrade
+
+```bash
+npm install @reevit/react@0.5.0
+```
+
+---
+
 # @reevit/react v0.3.2
 
 **Release Date:** December 29, 2025
