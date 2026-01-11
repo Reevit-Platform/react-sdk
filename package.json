@@ -1,6 +1,6 @@
 {
   "name": "@reevit/react",
-  "version": "0.4.9.6",
+  "version": "0.4.9.8",
   "description": "Reevit React SDK - Unified Payment Widget",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
