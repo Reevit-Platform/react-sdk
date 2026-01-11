@@ -228,6 +228,7 @@ export function useReevit(options: UseReevitOptions) {
 
   // Guard against duplicate initialize() calls (React StrictMode)
   const initializingRef = useRef(!!config.initialPaymentIntent);
+  const initRequestIdRef = useRef(0);
 
   // Update state if config.initialPaymentIntent changes
   useEffect(() => {
@@ -263,13 +264,13 @@ export function useReevit(options: UseReevitOptions) {
         return;
       }
       initializingRef.current = true;
+      const requestId = ++initRequestIdRef.current;
 
       dispatch({ type: 'INIT_START' });
 
       try {
         const apiClient = apiClientRef.current;
         if (!apiClient) {
-          initializingRef.current = false;
           throw new Error('API client not initialized');
         }
 
@@ -331,6 +332,10 @@ export function useReevit(options: UseReevitOptions) {
           error = result.error;
         }
 
+        if (requestId !== initRequestIdRef.current) {
+          return;
+        }
+
         if (error) {
           dispatch({ type: 'INIT_ERROR', payload: error });
           onError?.(error);
@@ -355,6 +360,9 @@ export function useReevit(options: UseReevitOptions) {
         dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
         // Don't reset initializingRef here - once initialized, stay initialized until reset()
       } catch (err) {
+        if (requestId !== initRequestIdRef.current) {
+          return;
+        }
         const error: PaymentError = {
           code: 'INIT_FAILED',
           message: err instanceof Error ? err.message : 'Failed to initialize checkout',
@@ -461,6 +469,7 @@ export function useReevit(options: UseReevitOptions) {
   // Reset checkout
   const reset = useCallback(() => {
     initializingRef.current = false;
+    initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
   }, []);
 
