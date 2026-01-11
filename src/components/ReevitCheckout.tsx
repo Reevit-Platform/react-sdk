@@ -15,7 +15,7 @@ import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
 import { MonnifyBridge } from '../bridges/MonnifyBridge';
 import { MPesaBridge } from '../bridges/MPesaBridge';
 import { StripeBridge } from '../bridges/StripeBridge';
-import { formatAmount, createThemeVariables, cn } from '../utils';
+import { formatAmount, createThemeVariables, cn, getCountryFromCurrency } from '../utils';
 
 
 // Context for nested components
@@ -335,9 +335,39 @@ export function ReevitCheckout({
     };
   }, [paymentIntent?.branding, theme]);
 
-  const themeStyles = resolvedTheme
-    ? createThemeVariables(resolvedTheme as unknown as Record<string, string | undefined>)
-    : {};
+  const themeStyles = useMemo(() => {
+    if (!resolvedTheme) return {};
+    const vars: Record<string, string> = {};
+
+    // Background color applies to entire checkout (header, body, footer)
+    if (resolvedTheme.backgroundColor) {
+      vars['--reevit-background'] = resolvedTheme.backgroundColor;
+      vars['--reevit-surface'] = resolvedTheme.backgroundColor;
+    }
+
+    // Primary color for main text, headings, important elements
+    if (resolvedTheme.primaryColor) {
+      vars['--reevit-text'] = resolvedTheme.primaryColor;
+    }
+
+    // Primary foreground for sub text, descriptions, muted elements
+    if (resolvedTheme.primaryForegroundColor) {
+      vars['--reevit-text-secondary'] = resolvedTheme.primaryForegroundColor;
+      vars['--reevit-muted'] = resolvedTheme.primaryForegroundColor;
+    }
+
+    // Border color for borders and dividers
+    if (resolvedTheme.borderColor) {
+      vars['--reevit-border'] = resolvedTheme.borderColor;
+    }
+
+    if (resolvedTheme.borderRadius) {
+      vars['--reevit-radius'] = resolvedTheme.borderRadius;
+      vars['--reevit-radius-lg'] = resolvedTheme.borderRadius;
+    }
+
+    return vars;
+  }, [resolvedTheme]);
   const brandName = resolvedTheme?.companyName;
   const themeMode = resolvedTheme?.darkMode;
   const dataTheme = useMemo(() => {
@@ -405,7 +435,7 @@ export function ReevitCheckout({
 
     // PSP Bridge
     if (showPSPBridge) {
-    const pspKey = paymentIntent?.pspPublicKey || publicKey || '';
+      const pspKey = paymentIntent?.pspPublicKey || publicKey || '';
       const bridgeMetadata = {
         ...metadata,
         payment_id: paymentIntent?.id,
@@ -568,6 +598,7 @@ export function ReevitCheckout({
             onSelect={handleProviderSelect}
             disabled={isLoading}
             theme={resolvedTheme}
+            country={getCountryFromCurrency(currency)}
             selectedMethod={selectedMethod}
             onMethodSelect={handleMethodSelect}
             renderMethodContent={renderMethodContent}
@@ -586,6 +617,13 @@ export function ReevitCheckout({
           provider={psp}
           layout="list"
           showLabel={false}
+          country={getCountryFromCurrency(currency)}
+          selectedTheme={resolvedTheme ? {
+            backgroundColor: resolvedTheme.selectedBackgroundColor,
+            textColor: resolvedTheme.selectedTextColor,
+            descriptionColor: resolvedTheme.selectedDescriptionColor,
+            borderColor: resolvedTheme.selectedBorderColor,
+          } : undefined}
         />
 
         {selectedMethod && (
@@ -636,14 +674,21 @@ export function ReevitCheckout({
           >
             <div className="reevit-modal__header">
               <div className="reevit-modal__branding">
-                <img
-                  src={resolvedTheme?.logoUrl || "https://i.imgur.com/bzUR5Lm.png"}
-                  alt={brandName || "Reevit"}
-                  className="reevit-modal__logo"
-                />
+                {resolvedTheme?.logoUrl && (
+                  <img
+                    src={resolvedTheme.logoUrl}
+                    alt={brandName || ""}
+                    className="reevit-modal__logo"
+                  />
+                )}
                 {brandName && <span className="reevit-modal__brand-name">{brandName}</span>}
               </div>
-              <button className="reevit-modal__close" onClick={handleClose} aria-label="Close">✕</button>
+              <button className="reevit-modal__close" onClick={handleClose} aria-label="Close">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
 
             <div className="reevit-modal__amount">

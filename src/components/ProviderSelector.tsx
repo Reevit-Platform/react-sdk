@@ -20,6 +20,8 @@ interface ProviderSelectorProps {
   onSelect: (provider: string) => void;
   disabled?: boolean;
   theme?: ReevitTheme;
+  /** Country code for dynamic logos (e.g., 'GH', 'NG', 'KE') */
+  country?: string;
   // Accordion mode props
   selectedMethod?: PaymentMethod | null;
   onMethodSelect?: (method: PaymentMethod) => void;
@@ -65,30 +67,11 @@ export function ProviderSelector({
   onSelect,
   disabled = false,
   theme,
+  country = 'GH',
   selectedMethod,
   onMethodSelect,
   renderMethodContent,
 }: ProviderSelectorProps) {
-  // PSP selector styling from theme
-  const useBorder = theme?.pspSelectorUseBorder ?? false;
-  const bgColor = theme?.pspSelectorBgColor || "#0a0a0a";
-  const textColor = theme?.pspSelectorTextColor || "#ffffff";
-  const borderColor = theme?.pspSelectorBorderColor || "#374151";
-
-  const getOptionStyle = (isSelected: boolean) => {
-    if (useBorder) {
-      return {
-        backgroundColor: "transparent",
-        border: `2px solid ${isSelected ? borderColor : "#374151"}`,
-        color: isSelected ? textColor : "var(--reevit-text)",
-      };
-    }
-    return {
-      backgroundColor: isSelected ? bgColor : "transparent",
-      border: `2px solid ${isSelected ? bgColor : "#374151"}`,
-      color: isSelected ? textColor : "var(--reevit-text)",
-    };
-  };
 
   return (
     <div className="reevit-psp-selector">
@@ -102,7 +85,9 @@ export function ProviderSelector({
           const providerMethods = sanitizeMethods(provider.provider, provider.methods);
           const isSelected = selectedProvider === provider.provider;
           const fallbackInitial = provider.name.slice(0, 1).toUpperCase();
-          const optionStyle = getOptionStyle(isSelected);
+
+          // Get country from provider's countries array
+          const providerCountry = provider.countries?.[0] || country;
 
           return (
             <div key={provider.provider} className="reevit-psp-accordion">
@@ -114,7 +99,6 @@ export function ProviderSelector({
                   isSelected && "reevit-psp-option--selected",
                   disabled && "reevit-psp-option--disabled",
                 )}
-                style={optionStyle}
                 onClick={() => onSelect(provider.provider)}
                 disabled={disabled}
                 aria-expanded={isSelected}
@@ -132,7 +116,9 @@ export function ProviderSelector({
                   )}
                 </span>
                 <div className="reevit-psp-option__content">
-                  <span className="reevit-psp-option__name">{provider.name}</span>
+                  <span className="reevit-psp-option__name">
+                    Pay with {provider.name}
+                  </span>
                   <span className="reevit-psp-option__methods">
                     {formatMethods(providerMethods) || meta.hint}
                   </span>
@@ -141,7 +127,12 @@ export function ProviderSelector({
 
               {/* Expanded Payment Methods */}
               {isSelected && onMethodSelect && (
-                <div className="reevit-psp-accordion__content">
+                <div
+                  className="reevit-psp-accordion__content"
+                  style={theme?.selectedBorderColor ? {
+                    borderTop: `1px solid ${theme.selectedBorderColor}`,
+                  } : undefined}
+                >
                   <div className="reevit-psp-methods">
                     <PaymentMethodSelector
                       methods={providerMethods}
@@ -151,6 +142,13 @@ export function ProviderSelector({
                       provider={provider.provider}
                       layout="list"
                       showLabel={false}
+                      country={providerCountry}
+                      selectedTheme={theme ? {
+                        backgroundColor: theme.selectedBackgroundColor,
+                        textColor: theme.selectedTextColor,
+                        descriptionColor: theme.selectedDescriptionColor,
+                        borderColor: theme.selectedBorderColor,
+                      } : undefined}
                     />
                   </div>
 

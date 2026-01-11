@@ -4,7 +4,7 @@
  */
 
 import type { PaymentMethod } from "../types";
-import { cn } from "../utils";
+import { cn, getMethodLogos } from "../utils";
 
 interface PaymentMethodSelectorProps {
   methods: PaymentMethod[];
@@ -14,6 +14,15 @@ interface PaymentMethodSelectorProps {
   provider?: string;
   layout?: 'grid' | 'list';
   showLabel?: boolean;
+  /** Country code for dynamic logos (e.g., 'GH', 'NG', 'KE') */
+  country?: string;
+  /** Selected theme colors for method items */
+  selectedTheme?: {
+    backgroundColor?: string;
+    textColor?: string;
+    descriptionColor?: string;
+    borderColor?: string;
+  };
 }
 
 // Human-readable PSP names
@@ -56,21 +65,36 @@ export function PaymentMethodSelector({
   provider,
   layout = 'list',
   showLabel = true,
+  country = 'GH',
+  selectedTheme,
 }: PaymentMethodSelectorProps) {
   const getMethodLabel = (method: PaymentMethod, psp?: string): string => {
     const config = methodConfig[method];
     return config.label;
   };
 
-  const getMethodDescription = (method: PaymentMethod, psp?: string): string => {
-    const config = methodConfig[method];
+  const getMethodDescription = (method: PaymentMethod, psp?: string, countryCode?: string): string => {
+    const c = (countryCode || country).toUpperCase();
 
-    // Hubtel handles everything internally, no need for extra description
-    if (psp?.toLowerCase().includes("hubtel")) {
-      return config.description;
+    if (method === 'mobile_money') {
+      const mobileMoneyDescriptions: Record<string, string> = {
+        GH: 'MTN, Vodafone Cash, AirtelTigo Money',
+        KE: 'M-Pesa, Airtel Money',
+        NG: 'MTN MoMo, Airtel Money',
+        ZA: 'Mobile Money',
+      };
+      return mobileMoneyDescriptions[c] || 'Mobile Money';
     }
 
-    return config.description;
+    if (method === 'card') {
+      return 'Pay with Visa, Mastercard, or other cards';
+    }
+
+    if (method === 'bank_transfer') {
+      return 'Pay directly from your bank account';
+    }
+
+    return '';
   };
 
   const isGrid = layout === 'grid';
@@ -78,15 +102,19 @@ export function PaymentMethodSelector({
   return (
     <div className={cn("reevit-method-selector", isGrid && "reevit-method-selector--grid")}>
       {showLabel && <div className="reevit-method-selector__label">Select payment method</div>}
-      <div className={cn(
-        "reevit-method-selector__options",
-        isGrid ? "reevit-method-selector__options--grid" : "reevit-method-selector__options--list"
-      )}>
+      <div
+        className={cn(
+          "reevit-method-selector__options",
+          isGrid ? "reevit-method-selector__options--grid" : "reevit-method-selector__options--list"
+        )}
+        style={selectedTheme?.backgroundColor ? { backgroundColor: selectedTheme.backgroundColor } : undefined}
+      >
         {methods.map((method, index) => {
           const config = methodConfig[method];
           const isSelected = selectedMethod === method;
           const methodLabel = getMethodLabel(method, provider);
           const methodDescription = getMethodDescription(method, provider);
+          const logos = getMethodLogos(country, method);
 
           return (
             <button
@@ -99,19 +127,35 @@ export function PaymentMethodSelector({
                 disabled && "reevit-method-option--disabled",
               )}
               style={{
-                animationDelay: `${index * 0.05}s`
+                animationDelay: `${index * 0.05}s`,
+                borderBottomColor: selectedTheme?.borderColor,
               }}
               onClick={() => onSelect(method)}
               disabled={disabled}
               aria-pressed={isSelected}
             >
               <span className="reevit-method-option__icon-wrapper">
-                <span className="reevit-method-option__icon">{config.icon}</span>
+                {logos.length > 0 ? (
+                  <span className="reevit-method-option__logos">
+                    {logos.slice(0, 3).map((logo, i) => (
+                      <img
+                        key={i}
+                        src={logo}
+                        alt=""
+                        className="reevit-method-option__logo-img"
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="reevit-method-option__icon">{config.icon}</span>
+                )}
               </span>
               <div className="reevit-method-option__content">
-                <span className="reevit-method-option__label">{methodLabel}</span>
+                <span className="reevit-method-option__label" style={selectedTheme?.textColor ? { color: selectedTheme.textColor } : undefined}>
+                  {methodLabel}
+                </span>
                 {!isGrid && (
-                  <span className="reevit-method-option__description">
+                  <span className="reevit-method-option__description" style={selectedTheme?.descriptionColor ? { color: selectedTheme.descriptionColor } : undefined}>
                     {methodDescription}
                   </span>
                 )}
