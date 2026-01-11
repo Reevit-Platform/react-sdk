@@ -17,7 +17,7 @@ interface MobileMoneyFormProps {
 
 const networks: { id: MobileMoneyNetwork; name: string; color: string }[] = [
   { id: 'mtn', name: 'MTN', color: '#FFCC00' },
-  { id: 'vodafone', name: 'Vodafone', color: '#E60000' },
+  { id: 'telecel', name: 'Telecel', color: '#E60000' },
   { id: 'airteltigo', name: 'AirtelTigo', color: '#E4002B' },
 ];
 

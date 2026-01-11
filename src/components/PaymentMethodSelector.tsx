@@ -48,7 +48,7 @@ const methodConfig: Record<
   mobile_money: {
     label: "Mobile Money",
     icon: "📱",
-    description: "MTN, Vodafone Cash, AirtelTigo Money",
+    description: "MTN, Telecel, AirtelTigo Money",
   },
   bank_transfer: {
     label: "Bank Transfer",
@@ -88,7 +88,7 @@ export function PaymentMethodSelector({
 
     if (method === 'mobile_money') {
       const mobileMoneyDescriptions: Record<string, string> = {
-        GH: 'MTN, Vodafone Cash, AirtelTigo Money',
+        GH: 'MTN, Telecel, AirtelTigo Money',
         KE: 'M-Pesa, Airtel Money',
         NG: 'MTN MoMo, Airtel Money',
         ZA: 'Mobile Money',

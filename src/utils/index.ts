@@ -55,7 +55,7 @@ export function validatePhone(phone: string, network?: string): boolean {
   // Check for valid Ghana phone number formats
   const patterns = {
     mtn: /^(0|233|\+233)?(24|54|55|59)\d{7}$/,
-    vodafone: /^(0|233|\+233)?(20|50)\d{7}$/,
+    telecel: /^(0|233|\+233)?(20|50)\d{7}$/,
     airteltigo: /^(0|233|\+233)?(26|27|56|57)\d{7}$/,
   };
 
@@ -94,7 +94,7 @@ export function detectNetwork(phone: string): string | null {
 
   const prefixes: Record<string, string[]> = {
     mtn: ['024', '054', '055', '059', '23324', '23354', '23355', '23359'],
-    vodafone: ['020', '050', '23320', '23350'],
+    telecel: ['020', '050', '23320', '23350'],
     airteltigo: ['026', '027', '056', '057', '23326', '23327', '23356', '23357'],
   };
 

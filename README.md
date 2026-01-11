@@ -5,7 +5,7 @@ Unified Payment Widget for React Applications. Accept card and mobile money paym
 ## Installation
 
 ```bash
-npm install @reevit/react
+npm install @reevit/react@0.5.0
 ```
 
 ## Quick Start
@@ -272,8 +272,6 @@ function MpesaPayment() {
 
 ## Supported PSPs
 
-| Provider | Countries | Payment Methods |
-|----------|-----------|-----------------|
 | Paystack | NG, GH, ZA, KE | Card, Mobile Money, Bank Transfer |
 | Flutterwave | NG, GH, KE, ZA + | Card, Mobile Money, Bank Transfer |
 | Hubtel | GH | Mobile Money |
