@@ -178,6 +178,10 @@ function normalizeBranding(branding?: Record<string, unknown>): ReevitTheme {
   setIf('pspSelectorTextColor', getString(raw.pspSelectorTextColor ?? raw.psp_selector_text_color));
   setIf('pspSelectorBorderColor', getString(raw.pspSelectorBorderColor ?? raw.psp_selector_border_color));
   setIf('pspSelectorUseBorder', getBoolean(raw.pspSelectorUseBorder ?? raw.psp_selector_use_border));
+  setIf('selectedBackgroundColor', getString(raw.selectedBackgroundColor ?? raw.selected_background_color));
+  setIf('selectedTextColor', getString(raw.selectedTextColor ?? raw.selected_text_color));
+  setIf('selectedDescriptionColor', getString(raw.selectedDescriptionColor ?? raw.selected_description_color));
+  setIf('selectedBorderColor', getString(raw.selectedBorderColor ?? raw.selected_border_color));
 
   return theme as ReevitTheme;
 }
@@ -194,9 +198,10 @@ function mapToPaymentIntent(
     id: response.id,
     clientSecret: response.client_secret,
     pspPublicKey: response.psp_public_key,
+    pspCredentials: response.psp_credentials,
     amount: response.amount,
     currency: response.currency,
-    status: response.status as 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled',
+    status: response.status as 'pending' | 'requires_action' | 'processing' | 'succeeded' | 'failed' | 'canceled' | 'cancelled',
     recommendedPsp: mapProviderToPsp(response.provider),
     availableMethods: config.paymentMethods || ['card', 'mobile_money'],
     reference: response.reference || response.id, // Use backend reference or fallback to ID
