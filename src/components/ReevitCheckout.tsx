@@ -3,7 +3,7 @@
  * Main checkout component that orchestrates the payment flow
  */
 
-import { useEffect, useState, useCallback, useMemo, createContext, useContext } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, createContext, useContext } from 'react';
 import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, PaymentResult, CheckoutProviderOption } from '../types';
 import { useReevit } from '../hooks/useReevit';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
@@ -70,6 +70,7 @@ export function ReevitCheckout({
   onOpenChange,
   theme,
   apiBaseUrl,
+  successDelayMs = 5000,
 }: ReevitCheckoutProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(autoOpen);
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
@@ -88,6 +89,7 @@ export function ReevitCheckout({
   const [showPSPBridge, setShowPSPBridge] = useState(false);
   const [momoData, setMomoData] = useState<MobileMoneyFormData | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     status,
@@ -119,11 +121,22 @@ export function ReevitCheckout({
     },
     apiBaseUrl,
     onSuccess: (result) => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
+      }
+
+      if (successDelayMs > 0) {
+        successTimeoutRef.current = setTimeout(() => {
+          onSuccess?.(result);
+          setIsOpen(false);
+          successTimeoutRef.current = null;
+        }, successDelayMs);
+        return;
+      }
+
       onSuccess?.(result);
-      // Keep modal open for 5 seconds to show success screen
-      setTimeout(() => {
-        setIsOpen(false);
-      }, 5000);
+      setIsOpen(false);
     },
     onError,
     onClose: () => {
@@ -230,12 +243,25 @@ export function ReevitCheckout({
 
   // Close modal
   const handleClose = useCallback(() => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
     closeCheckout();
     setIsOpen(false);
     setShowPSPBridge(false);
     setMomoData(null);
     setSelectedProvider(null);
   }, [closeCheckout, setIsOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Handle payment method selection
   const handleMethodSelect = useCallback(

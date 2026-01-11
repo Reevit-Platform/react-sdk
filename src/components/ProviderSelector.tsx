@@ -4,7 +4,7 @@
  */
 
 import type { CheckoutProviderOption, PaymentMethod, ReevitTheme } from "../types";
-import { cn } from "../utils";
+import { cn, resolveAssetSrc } from "../utils";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 
 import flutterwaveLogo from "../assets/providers/flutterwave.png";
@@ -93,6 +93,8 @@ export function ProviderSelector({
           // Get country from provider's countries array
           const providerCountry = provider.countries?.[0] || country;
 
+          const logoSrc = resolveAssetSrc(meta.logo);
+
           return (
             <div key={provider.provider} className="reevit-psp-accordion">
               {/* PSP Header */}
@@ -108,9 +110,9 @@ export function ProviderSelector({
                 aria-expanded={isSelected}
               >
                 <span className="reevit-psp-option__logo" aria-hidden="true">
-                  {meta.logo ? (
+                  {logoSrc ? (
                     <img
-                      src={meta.logo}
+                      src={logoSrc}
                       alt=""
                       className="reevit-psp-option__logo-img"
                       loading="lazy"

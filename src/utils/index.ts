@@ -2,6 +2,26 @@
  * Utility functions for the Reevit React SDK
  */
 
+import airteltigoLogo from '../assets/methods/airteltigo.png';
+import applePayLogo from '../assets/methods/apple-pay.png';
+import googlePayLogo from '../assets/methods/google-pay.png';
+import mastercardLogo from '../assets/methods/mastercard.png';
+import mpesaLogo from '../assets/methods/mpesa.png';
+import mtnLogo from '../assets/methods/mtn.png';
+import telecelLogo from '../assets/methods/telecel.png';
+import visaLogo from '../assets/methods/visa.png';
+
+export type AssetSource = string | { src: string };
+
+export function resolveAssetSrc(asset?: AssetSource | null): string | undefined {
+  if (!asset) return undefined;
+  if (typeof asset === 'string') return asset;
+  if (typeof asset === 'object' && 'src' in asset && typeof asset.src === 'string') {
+    return asset.src;
+  }
+  return undefined;
+}
+
 /**
  * Format amount for display
  */
@@ -232,35 +252,29 @@ export function getCountryFromCurrency(currency: string): string {
 export function getMethodLogos(country: string, method: string): string[] {
   const c = country.toUpperCase();
 
-  // CDN-hosted logos (using reliable sources)
   const LOGOS = {
-    // Card logos from Stripe CDN (reliable)
-    visa: 'https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg',
-    mastercard: 'https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg',
-    amex: 'https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg',
-    // Wallet logos from reliable sources (Wikimedia thumbnails for best performance/reliability)
-    apple_pay: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/256px-Apple_Pay_logo.svg.png',
-    google_pay: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Google_Pay_Logo_%282020%29.svg/256px-Google_Pay_Logo_%282020%29.svg.png',
-    // Mobile money logos (Wikimedia public domain assets)
-    mtn: 'https://cdn.brandfetch.io/idtdXB-ogi/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1667849059567',
-    vodafone: 'https://cdn.brandfetch.io/id6HZwtapX/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1727707076252',
-    airtel: 'https://cdn.brandfetch.io/idvMDbAci6/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1684941044634',
-    mpesa: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO-01.svg/2560px-M-PESA_LOGO-01.svg.png',
-    telecel: 'https://cdn.brandfetch.io/idW-TDK3Zv/w/110/h/88/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1668075554810',
+    visa: resolveAssetSrc(visaLogo),
+    mastercard: resolveAssetSrc(mastercardLogo),
+    apple_pay: resolveAssetSrc(applePayLogo),
+    google_pay: resolveAssetSrc(googlePayLogo),
+    mtn: resolveAssetSrc(mtnLogo),
+    telecel: resolveAssetSrc(telecelLogo),
+    airteltigo: resolveAssetSrc(airteltigoLogo),
+    mpesa: resolveAssetSrc(mpesaLogo),
   };
 
   if (method === 'card') {
-    return [LOGOS.visa, LOGOS.mastercard];
+    return [LOGOS.visa, LOGOS.mastercard].filter(Boolean) as string[];
   }
 
-  if (method === 'apple_pay') return [LOGOS.apple_pay];
-  if (method === 'google_pay') return [LOGOS.google_pay];
+  if (method === 'apple_pay') return [LOGOS.apple_pay].filter(Boolean) as string[];
+  if (method === 'google_pay') return [LOGOS.google_pay].filter(Boolean) as string[];
 
   if (method === 'mobile_money') {
-    if (c === 'GH') return [LOGOS.mtn, LOGOS.telecel, LOGOS.airtel];
-    if (c === 'KE') return [LOGOS.mpesa, LOGOS.airtel];
-    if (c === 'NG') return [LOGOS.mtn, LOGOS.airtel];
-    return [LOGOS.mtn];
+    if (c === 'GH') return [LOGOS.mtn, LOGOS.telecel, LOGOS.airteltigo].filter(Boolean) as string[];
+    if (c === 'KE') return [LOGOS.mpesa].filter(Boolean) as string[];
+    if (c === 'NG') return [LOGOS.mtn].filter(Boolean) as string[];
+    return [LOGOS.mtn].filter(Boolean) as string[];
   }
 
   return [];

@@ -65,6 +65,8 @@ export interface ReevitCheckoutProps extends ReevitCheckoutConfig, ReevitCheckou
   theme?: ReevitTheme;
   /** Custom API base URL (for testing or self-hosted deployments) */
   apiBaseUrl?: string;
+  /** Delay (ms) before calling onSuccess and closing after a successful payment */
+  successDelayMs?: number;
 }
 
 // Checkout state machine
