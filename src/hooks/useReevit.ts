@@ -77,7 +77,7 @@ function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
     case 'INIT_ERROR':
       return { ...state, status: 'failed', error: action.payload };
     case 'SELECT_METHOD':
-      return { ...state, status: 'method_selected', selectedMethod: action.payload };
+      return { ...state, status: 'method_selected', selectedMethod: action.payload, error: null };
     case 'PROCESS_START':
       return { ...state, status: 'processing', error: null };
     case 'PROCESS_SUCCESS':
