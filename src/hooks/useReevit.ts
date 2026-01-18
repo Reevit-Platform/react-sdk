@@ -473,11 +473,23 @@ export function useReevit(options: UseReevitOptions) {
   );
 
   // Reset checkout
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
+    // Cancel the existing payment intent if it exists and is still pending
+    if (state.paymentIntent && state.status !== 'success') {
+      try {
+        const apiClient = apiClientRef.current;
+        if (apiClient) {
+          await apiClient.cancelPaymentIntent(state.paymentIntent.id);
+        }
+      } catch {
+        // Silently ignore cancel errors
+      }
+    }
+
     initializingRef.current = false;
     initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
-  }, []);
+  }, [state.paymentIntent, state.status]);
 
   // Close checkout
   const close = useCallback(async () => {

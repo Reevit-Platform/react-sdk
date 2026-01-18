@@ -272,11 +272,11 @@ export function ReevitCheckout({
   );
 
   const handleProviderSelect = useCallback(
-    (provider: string) => {
+    async (provider: string) => {
       // Toggle behavior - clicking same PSP collapses it
       if (provider === selectedProvider) {
         setSelectedProvider(null);
-        reset();
+        await reset();
         setShowPSPBridge(false);
         setMomoData(null);
         return;
@@ -289,7 +289,7 @@ export function ReevitCheckout({
         : providerMethods[0] || paymentMethods[0];
 
       setSelectedProvider(provider);
-      reset();
+      await reset();
       setShowPSPBridge(false);
       setMomoData(null);
       initialize(methodForInit, { preferredProvider: provider, allowedProviders: [provider] });
@@ -344,8 +344,8 @@ export function ReevitCheckout({
   }, []);
 
   // Back button handler
-  const handleBack = useCallback(() => {
-    reset();
+  const handleBack = useCallback(async () => {
+    await reset();
     setMomoData(null);
     setShowPSPBridge(false);
   }, [reset]);
