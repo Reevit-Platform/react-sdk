@@ -15,7 +15,7 @@ import type {
   CheckoutProviderOption,
 } from '../types';
 import { generateReference } from '../utils';
-import { ReevitAPIClient, type PaymentIntentResponse } from '../api';
+import { ReevitAPIClient, generateIdempotencyKey, type PaymentIntentResponse } from '../api';
 
 // State shape
 interface ReevitState {
@@ -297,13 +297,23 @@ export function useReevit(options: UseReevitOptions) {
         let error: PaymentError | undefined;
 
         if (config.paymentLinkCode) {
+          // Generate a deterministic idempotency key for payment link requests
+          const idempotencyKey = generateIdempotencyKey({
+            paymentLinkCode: config.paymentLinkCode,
+            amount: config.amount,
+            email: config.email || '',
+            phone: config.phone || '',
+            method: paymentMethod || '',
+            provider: options?.preferredProvider || options?.allowedProviders?.[0] || '',
+          });
+
           const response = await fetch(
             `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/pay/${config.paymentLinkCode}/pay`,
             {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Idempotency-Key': `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
+                'Idempotency-Key': idempotencyKey,
               },
               body: JSON.stringify({
                 amount: config.amount,

@@ -148,6 +148,35 @@ function createPaymentError(response: Response, errorData: APIErrorResponse): Pa
 }
 
 /**
+ * Generates a deterministic idempotency key based on input parameters
+ * Uses a simple hash function suitable for browser environments
+ * Exported for use by SDK hooks (e.g., payment link flows)
+ */
+export function generateIdempotencyKey(params: Record<string, unknown>): string {
+  // Create a stable string representation of the parameters
+  const sortedKeys = Object.keys(params).sort();
+  const stableString = sortedKeys
+    .map(key => `${key}:${JSON.stringify(params[key])}`)
+    .join('|');
+
+  // Simple hash function (djb2 algorithm)
+  let hash = 5381;
+  for (let i = 0; i < stableString.length; i++) {
+    hash = ((hash << 5) + hash) + stableString.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+
+  // Convert to positive hex string
+  const hashHex = (hash >>> 0).toString(16);
+
+  // Add a time bucket (5-minute windows) to allow retries within a reasonable window
+  // but prevent keys from being reused across completely different sessions
+  const timeBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+
+  return `reevit_${timeBucket}_${hashHex}`;
+}
+
+/**
  * Reevit API Client
  */
 export class ReevitAPIClient {
@@ -165,11 +194,13 @@ export class ReevitAPIClient {
 
   /**
    * Makes an authenticated API request
+   * @param idempotencyKey Optional deterministic idempotency key for the request
    */
   private async request<T>(
     method: string,
     path: string,
-    body?: unknown
+    body?: unknown,
+    idempotencyKey?: string
   ): Promise<{ data?: T; error?: PaymentError }> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -186,7 +217,9 @@ export class ReevitAPIClient {
 
     // Add idempotency key for mutating requests
     if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
-      headers['Idempotency-Key'] = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      // Use provided deterministic key, or generate one based on request body
+      headers['Idempotency-Key'] = idempotencyKey ||
+        (body ? generateIdempotencyKey(body as Record<string, unknown>) : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`);
     }
 
     try {
@@ -278,7 +311,19 @@ export class ReevitAPIClient {
       };
     }
 
-    return this.request<PaymentIntentResponse>('POST', '/v1/payments/intents', request);
+    // Generate a deterministic idempotency key based on payment parameters
+    // This ensures that duplicate requests for the same payment return the same intent
+    const idempotencyKey = generateIdempotencyKey({
+      amount: config.amount,
+      currency: config.currency,
+      customer: config.email || config.metadata?.customerId || '',
+      reference: config.reference || '',
+      method: method || '',
+      provider: options?.preferredProviders?.[0] || options?.allowedProviders?.[0] || '',
+      publicKey: this.publicKey,
+    });
+
+    return this.request<PaymentIntentResponse>('POST', '/v1/payments/intents', request, idempotencyKey);
   }
 
   /**
