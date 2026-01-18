@@ -116,7 +116,6 @@ export function PaystackBridge({
         throw new Error('Paystack script loaded but PaystackPop not available');
       }
 
-      const safeMetadata = accessCode ? undefined : metadata;
       const setupConfig: PaystackConfig = {
         key: publicKey,
         email,
@@ -125,7 +124,7 @@ export function PaystackBridge({
         currency,
         ref: reference,
         access_code: accessCode,
-        metadata: safeMetadata,
+        metadata,
         channels,
         callback: (response: PaystackResponse) => {
           console.log('[PaystackBridge] Callback received', response);

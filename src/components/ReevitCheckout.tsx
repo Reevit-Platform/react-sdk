@@ -473,6 +473,7 @@ export function ReevitCheckout({
       const pspKey = paymentIntent?.pspPublicKey || publicKey || '';
       const bridgeMetadata = {
         ...metadata,
+        org_id: paymentIntent?.orgId ?? (metadata?.org_id as string),
         payment_id: paymentIntent?.id,
         connection_id: paymentIntent?.connectionId ?? (metadata?.connection_id as string),
         customer_phone: momoData?.phone || phone,

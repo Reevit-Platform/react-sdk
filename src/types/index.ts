@@ -228,6 +228,8 @@ export interface PaymentIntent {
   availableMethods: PaymentMethod[];
   /** Reference provided or generated */
   reference?: string;
+  /** Organization ID (from Reevit backend, required for webhook routing) */
+  orgId?: string;
   /** Connection ID (from Reevit backend) */
   connectionId?: string;
   /** Provider name (from backend) */

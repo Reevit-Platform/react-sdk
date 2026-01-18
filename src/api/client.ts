@@ -28,6 +28,7 @@ export interface CreatePaymentIntentRequest {
 
 export interface PaymentIntentResponse {
   id: string;
+  org_id?: string;
   connection_id: string;
   provider: string;
   status: string;
