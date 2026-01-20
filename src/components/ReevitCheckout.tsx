@@ -196,6 +196,8 @@ export function ReevitCheckout({
     }
 
     // Only auto-select if there's exactly one provider (no choice needed)
+    // IMPORTANT: Just set the state directly - do NOT call handleProviderSelect
+    // which would reset and re-initialize, causing duplicate payments
     if (providerOptions.length === 1) {
       setSelectedProvider(providerOptions[0].provider);
     }
@@ -276,7 +278,6 @@ export function ReevitCheckout({
       // Toggle behavior - clicking same PSP collapses it
       if (provider === selectedProvider) {
         setSelectedProvider(null);
-        await reset();
         setShowPSPBridge(false);
         setMomoData(null);
         return;
@@ -289,12 +290,17 @@ export function ReevitCheckout({
         : providerMethods[0] || paymentMethods[0];
 
       setSelectedProvider(provider);
-      await reset();
       setShowPSPBridge(false);
       setMomoData(null);
-      initialize(methodForInit, { preferredProvider: provider, allowedProviders: [provider] });
+
+      // Select the appropriate method for this provider
+      // No need to re-initialize - we already have the payment intent with available_psps
+      // Re-initializing would create a duplicate payment
+      if (methodForInit) {
+        selectMethod(methodForInit);
+      }
     },
-    [initialize, paymentMethods, providerOptions, reset, selectedMethod, selectedProvider]
+    [paymentMethods, providerOptions, selectMethod, selectedMethod, selectedProvider]
   );
 
   // Handle continue after method selection
