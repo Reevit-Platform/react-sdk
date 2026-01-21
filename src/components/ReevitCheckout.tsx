@@ -214,25 +214,8 @@ export function ReevitCheckout({
     }
   }, [activeProvider, selectedMethod, selectMethod]);
 
-  // Handle auto-advance logic
-  useEffect(() => {
-    // Only auto-advance if we have a selected method AND an intent
-    if (isOpen && selectedMethod && paymentIntent && !showPSPBridge) {
-      const psp = (selectedProvider || paymentIntent.recommendedPsp || 'paystack').toLowerCase();
-      const needsPhone = psp.includes('mpesa');
-
-      // For card, auto-advance if we have an intent
-      if (selectedMethod === 'card') {
-        setShowPSPBridge(true);
-      }
-      // For mobile money, auto-advance only if we have an intent AND phone if required
-      else if (selectedMethod === 'mobile_money') {
-        if (!needsPhone || (momoData?.phone || phone)) {
-          setShowPSPBridge(true);
-        }
-      }
-    }
-  }, [isOpen, selectedMethod, showPSPBridge, paymentIntent, momoData, phone, selectedProvider]);
+  // NOTE: Auto-advance logic removed to allow users to see and select payment methods
+  // Users must explicitly click a "Pay" button to proceed to the PSP bridge
 
   // Open modal
   const handleOpen = useCallback(() => {
