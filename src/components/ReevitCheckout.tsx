@@ -388,6 +388,15 @@ export function ReevitCheckout({
       vars['--reevit-muted'] = resolvedTheme.primaryForegroundColor;
     }
 
+    // Button colors
+    if (resolvedTheme.buttonBackgroundColor) {
+      vars['--reevit-primary'] = resolvedTheme.buttonBackgroundColor;
+      vars['--reevit-primary-hover'] = resolvedTheme.buttonBackgroundColor;
+    }
+    if (resolvedTheme.buttonTextColor) {
+      vars['--reevit-primary-foreground'] = resolvedTheme.buttonTextColor;
+    }
+
     // Border color for borders and dividers
     if (resolvedTheme.borderColor) {
       vars['--reevit-border'] = resolvedTheme.borderColor;
@@ -716,13 +725,15 @@ export function ReevitCheckout({
           >
             <div className="reevit-modal__header">
               <div className="reevit-modal__branding">
-                {resolvedTheme?.logoUrl && (
+                {resolvedTheme?.logoUrl ? (
                   <img
                     src={resolvedTheme.logoUrl}
                     alt={brandName || ""}
                     className="reevit-modal__logo"
                   />
-                )}
+                ) : brandName ? (
+                  <span className="reevit-modal__logo-fallback">{brandName.charAt(0)}</span>
+                ) : null}
                 {brandName && <span className="reevit-modal__brand-name">{brandName}</span>}
               </div>
               <button className="reevit-modal__close" onClick={handleClose} aria-label="Close">
@@ -734,7 +745,7 @@ export function ReevitCheckout({
             </div>
 
             <div className="reevit-modal__amount">
-              <span className="reevit-modal__amount-label">Amount</span>
+              <span className="reevit-modal__amount-label">Pay</span>
               <span className="reevit-modal__amount-value">{formatAmount(amount, currency)}</span>
             </div>
 
@@ -743,7 +754,13 @@ export function ReevitCheckout({
             </div>
 
             <div className="reevit-modal__footer">
-              <span className="reevit-modal__secured">🔒 Secured by Reevit</span>
+              <span className="reevit-modal__secured">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Secured by <span className="reevit-modal__secured-brand">Reevit</span>
+              </span>
             </div>
           </div>
         </div>

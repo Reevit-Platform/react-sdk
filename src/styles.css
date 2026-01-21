@@ -128,36 +128,49 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 18px 20px 12px;
   background: var(--reevit-background);
 }
 
 .reevit-modal__branding {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .reevit-modal__logo {
   height: 28px;
   width: 28px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 8px;
+}
+
+.reevit-modal__logo-fallback {
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--reevit-primary);
+  color: var(--reevit-primary-foreground);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .reevit-modal__brand-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--reevit-text);
 }
 
 .reevit-modal__close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: none;
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--reevit-text);
+  background: transparent;
+  color: var(--reevit-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -166,31 +179,32 @@
 }
 
 .reevit-modal__close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  color: var(--reevit-text);
+  opacity: 0.7;
 }
 
 /* Modal Amount */
 .reevit-modal__amount {
-  padding: 24px 20px;
-  text-align: center;
+  padding: 0 20px 16px;
+  text-align: left;
   background: var(--reevit-background);
+  border-bottom: 1px solid var(--reevit-border);
 }
 
 .reevit-modal__amount-label {
   display: block;
   font-size: 11px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--reevit-text);
-  opacity: 0.6;
-  margin-bottom: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--reevit-muted);
+  margin-bottom: 2px;
 }
 
 .reevit-modal__amount-value {
   display: block;
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--reevit-text);
 }
@@ -205,16 +219,28 @@
 
 /* Modal Footer */
 .reevit-modal__footer {
-  padding: 16px 20px;
+  padding: 12px 20px;
   text-align: center;
   background: var(--reevit-background);
+  border-top: 1px solid var(--reevit-border);
 }
 
 .reevit-modal__secured {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
   font-weight: 400;
-  color: var(--reevit-text);
-  opacity: 0.5;
+  color: var(--reevit-muted);
+  letter-spacing: 0;
+}
+
+.reevit-modal__secured svg {
+  flex-shrink: 0;
+}
+
+.reevit-modal__secured-brand {
+  font-weight: 500;
 }
 
 /* ===== PSP SELECTOR ===== */
@@ -223,49 +249,45 @@
 }
 
 .reevit-psp-selector__label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--reevit-text);
-  opacity: 0.6;
+  opacity: 0.7;
   margin-bottom: 12px;
 }
 
 .reevit-psp-selector__options {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--reevit-border);
-  border-radius: var(--reevit-radius);
-  overflow: hidden;
+  gap: 10px;
 }
 
 .reevit-psp-option {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border: none;
-  border-bottom: 1px solid var(--reevit-border);
-  border-radius: 0;
-  background: transparent;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--reevit-border);
+  border-radius: var(--reevit-radius);
+  background: var(--reevit-surface);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: left;
   width: 100%;
   position: relative;
 }
 
-.reevit-psp-option:last-child {
-  border-bottom: none;
-}
-
 .reevit-psp-option:hover:not(.reevit-psp-option--disabled):not(.reevit-psp-option--selected) {
-  background: rgba(0, 0, 0, 0.02);
+  border-color: color-mix(in srgb, var(--reevit-primary) 50%, var(--reevit-border));
+  background: color-mix(in srgb, var(--reevit-primary) 3%, var(--reevit-surface));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.08);
 }
 
 .reevit-psp-option--selected {
-  border-bottom: 1px solid var(--reevit-border);
+  border-color: var(--reevit-primary);
+  background: color-mix(in srgb, var(--reevit-primary) 5%, var(--reevit-surface));
+  border-radius: var(--reevit-radius) var(--reevit-radius) 0 0;
 }
 
 .reevit-psp-option--disabled {
@@ -274,24 +296,25 @@
 }
 
 .reevit-psp-option__logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: transparent;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--reevit-background);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid var(--reevit-border);
 }
 
 .reevit-psp-option__logo-img {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 
 .reevit-psp-option__logo-fallback {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--reevit-text);
 }
@@ -303,17 +326,28 @@
 
 .reevit-psp-option__name {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--reevit-text);
+  letter-spacing: -0.01em;
 }
 
 .reevit-psp-option__methods {
   display: block;
-  font-size: 12px;
-  color: var(--reevit-text);
-  opacity: 0.6;
-  margin-top: 2px;
+  font-size: 13px;
+  color: var(--reevit-text-secondary);
+  margin-top: 3px;
+}
+
+.reevit-psp-option__chevron {
+  color: var(--reevit-muted);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.reevit-psp-option:hover .reevit-psp-option__chevron {
+  color: var(--reevit-primary);
+  transform: translateX(2px);
 }
 
 
@@ -362,26 +396,30 @@
 }
 
 .reevit-psp-accordion__content {
-  padding: 12px 16px;
-  background: transparent;
-  border-bottom: 1px solid var(--reevit-border);
+  padding: 16px;
+  background: var(--reevit-surface);
+  border: 1px solid var(--reevit-primary);
+  border-top: none;
+  border-radius: 0 0 var(--reevit-radius) var(--reevit-radius);
   animation: reevit-accordion-expand 0.3s ease-out;
   transform-origin: top;
 }
 
-.reevit-psp-accordion:last-child .reevit-psp-accordion__content {
-  border-bottom: none;
+.reevit-psp-accordion__method-content {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--reevit-border);
 }
 
 /* Back button */
 .reevit-psp-back-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  background: transparent;
-  border: none;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  background: var(--reevit-background);
+  border: 1px solid var(--reevit-border);
   border-radius: var(--reevit-radius-sm);
   color: var(--reevit-text-secondary);
   font-family: var(--reevit-font);
@@ -392,7 +430,8 @@
 }
 
 .reevit-psp-back-button:hover {
-  background: var(--reevit-border);
+  background: var(--reevit-surface);
+  border-color: var(--reevit-text-secondary);
   color: var(--reevit-text);
 }
 
@@ -405,6 +444,10 @@
   flex-shrink: 0;
 }
 
+.reevit-psp-methods {
+  margin-top: 4px;
+}
+
 /* ===== PAYMENT METHOD SELECTOR ===== */
 .reevit-method-selector {
   margin-bottom: 16px;
@@ -412,12 +455,10 @@
 }
 
 .reevit-method-selector__label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--reevit-text);
-  opacity: 0.6;
+  opacity: 0.7;
   margin-bottom: 12px;
 }
 
@@ -436,6 +477,7 @@
   border: 1px solid var(--reevit-border);
   border-radius: var(--reevit-radius);
   overflow: hidden;
+  background: var(--reevit-surface);
 }
 
 /* Grid layout styles */
@@ -509,8 +551,8 @@
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  gap: 16px;
-  padding: 16px 18px;
+  gap: 14px;
+  padding: 14px 16px;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--reevit-border);
@@ -527,11 +569,11 @@
 }
 
 .reevit-method-option--list:hover:not(.reevit-method-option--disabled) {
-  background: rgba(0, 0, 0, 0.02);
+  background: color-mix(in srgb, var(--reevit-primary) 4%, transparent);
 }
 
 .reevit-method-option--list.reevit-method-option--selected {
-  background: rgba(0, 0, 0, 0.02);
+  background: color-mix(in srgb, var(--reevit-primary) 6%, transparent);
 }
 
 .reevit-method-option--list .reevit-method-option__icon-wrapper {
@@ -559,21 +601,37 @@
   font-weight: 600;
   color: var(--reevit-text);
   margin-bottom: 2px;
+  letter-spacing: -0.01em;
 }
 
 .reevit-method-option--list .reevit-method-option__description {
   display: block;
   font-size: 13px;
-  color: var(--reevit-text);
-  opacity: 0.6;
+  color: var(--reevit-text-secondary);
   line-height: 1.4;
 }
 
 .reevit-method-option--list .reevit-method-option__chevron {
-  display: none;
+  color: var(--reevit-muted);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.reevit-method-option--list:hover .reevit-method-option__chevron {
+  color: var(--reevit-primary);
+  transform: translateX(2px);
 }
 
 .reevit-method-option--list .reevit-method-option__check {
+  color: var(--reevit-primary);
+  flex-shrink: 0;
+}
+
+.reevit-method-option--list.reevit-method-option--selected .reevit-method-option__chevron {
+  display: none;
+}
+
+.reevit-method-option--list:not(.reevit-method-option--selected) .reevit-method-option__check {
   display: none;
 }
 

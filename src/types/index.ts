@@ -128,6 +128,10 @@ export interface ReevitTheme {
   primaryColor?: string;
   /** Primary foreground color (sub text, descriptions, muted elements) */
   primaryForegroundColor?: string;
+  /** Button background color */
+  buttonBackgroundColor?: string;
+  /** Button text color */
+  buttonTextColor?: string;
   /** Background color (applies to entire checkout: header, body, footer) */
   backgroundColor?: string;
   /** Border color (borders, dividers) */

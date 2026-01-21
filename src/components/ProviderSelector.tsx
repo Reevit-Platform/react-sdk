@@ -25,16 +25,16 @@ interface ProviderSelectorProps {
   // Accordion mode props
   selectedMethod?: PaymentMethod | null;
   onMethodSelect?: (method: PaymentMethod) => void;
-  renderMethodContent?: (provider: string, method: PaymentMethod) => React.ReactNode;
+  renderMethodContent?: (provider: string, method: PaymentMethod) => JSX.Element | null;
 }
 
 const providerMeta: Record<string, { logo?: string; hint: string }> = {
-  paystack: { logo: paystackLogo, hint: "Card & Mobile Money" },
-  stripe: { logo: stripeLogo, hint: "Card payments" },
-  flutterwave: { logo: flutterwaveLogo, hint: "Global methods" },
-  hubtel: { logo: hubtelLogo, hint: "Mobile Money & Card" },
-  monnify: { logo: monnifyLogo, hint: "Bank & Card" },
-  mpesa: { logo: mpesaLogo, hint: "M-Pesa" },
+  paystack: { logo: resolveAssetSrc(paystackLogo), hint: "Card & Mobile Money" },
+  stripe: { logo: resolveAssetSrc(stripeLogo), hint: "Card payments" },
+  flutterwave: { logo: resolveAssetSrc(flutterwaveLogo), hint: "Global methods" },
+  hubtel: { logo: resolveAssetSrc(hubtelLogo), hint: "Mobile Money & Card" },
+  monnify: { logo: resolveAssetSrc(monnifyLogo), hint: "Bank & Card" },
+  mpesa: { logo: resolveAssetSrc(mpesaLogo), hint: "M-Pesa" },
 };
 
 const methodLabels: Record<PaymentMethod, string> = {
