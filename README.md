@@ -5,7 +5,7 @@ Unified Payment Widget for React Applications. Accept card and mobile money paym
 ## Installation
 
 ```bash
-npm install @reevit/react@0.5.0
+npm install @reevit/react
 ```
 
 ## Quick Start
