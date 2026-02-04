@@ -23,6 +23,7 @@ function App() {
       amount={10000} // Amount in smallest unit (e.g., pesewas for GHS)
       currency="GHS"
       email="customer@example.com"
+      idempotencyKey={`order_${Date.now()}`}
       onSuccess={(result) => {
         console.log('Payment success!', result);
         alert(`Payment of ${result.currency} ${result.amount/100} successful!`);
@@ -35,6 +36,19 @@ function App() {
     </ReevitCheckout>
   );
 }
+```
+
+## Idempotency
+
+Provide an `idempotencyKey` tied to your order/cart to avoid duplicate intent creation and enable safe retries.
+
+```tsx
+<ReevitCheckout
+  publicKey="pk_test_your_key"
+  amount={10000}
+  currency="GHS"
+  idempotencyKey="order_12345"
+/>
 ```
 
 ## Payment Links

@@ -1,3 +1,14 @@
+# @reevit/react (Unreleased)
+
+**Release Date:** February 4, 2026
+
+## 🛠 Improvements
+
+- Added `idempotencyKey` support to checkout config and API client calls.
+- Deduped in-flight payment intent creation to prevent duplicates (StrictMode-safe).
+
+---
+
 # @reevit/react v0.5.0
 
 **Release Date:** January 11, 2026
