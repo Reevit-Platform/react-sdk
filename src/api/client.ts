@@ -313,7 +313,7 @@ export class ReevitAPIClient {
 
     // Generate a deterministic idempotency key based on payment parameters
     // This ensures that duplicate requests for the same payment return the same intent
-    const idempotencyKey = generateIdempotencyKey({
+    const idempotencyKey = config.idempotencyKey || generateIdempotencyKey({
       amount: config.amount,
       currency: config.currency,
       customer: config.email || config.metadata?.customerId || '',

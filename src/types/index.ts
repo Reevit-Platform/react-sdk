@@ -27,6 +27,8 @@ export interface ReevitCheckoutConfig {
   customerName?: string;
   /** Unique reference for this transaction */
   reference?: string;
+  /** Optional idempotency key to safely retry or dedupe intent creation */
+  idempotencyKey?: string;
   /** Additional metadata to attach to the payment */
   metadata?: Record<string, unknown>;
   /** Custom fields for payment links (if applicable) */

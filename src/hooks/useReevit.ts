@@ -186,6 +186,99 @@ function normalizeBranding(branding?: Record<string, unknown>): ReevitTheme {
   return theme as ReevitTheme;
 }
 
+interface IntentCacheEntry {
+  promise?: Promise<PaymentIntentResponse>;
+  response?: PaymentIntentResponse;
+  expiresAt: number;
+  reference?: string;
+}
+
+const INTENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const intentCache = new Map<string, IntentCacheEntry>();
+
+function pruneIntentCache(now: number = Date.now()): void {
+  for (const [key, entry] of intentCache) {
+    if (entry.expiresAt <= now) {
+      intentCache.delete(key);
+    }
+  }
+}
+
+function getIntentCacheEntry(key: string): IntentCacheEntry | undefined {
+  const entry = intentCache.get(key);
+  if (!entry) {
+    return undefined;
+  }
+  if (entry.expiresAt <= Date.now()) {
+    intentCache.delete(key);
+    return undefined;
+  }
+  return entry;
+}
+
+function setIntentCacheEntry(key: string, update: Partial<IntentCacheEntry>): IntentCacheEntry {
+  const now = Date.now();
+  const existing = getIntentCacheEntry(key);
+  const next: IntentCacheEntry = {
+    ...existing,
+    ...update,
+    expiresAt: now + INTENT_CACHE_TTL_MS,
+  };
+  intentCache.set(key, next);
+  return next;
+}
+
+function clearIntentCacheEntry(key: string): void {
+  intentCache.delete(key);
+}
+
+function buildIdempotencyPayload(
+  config: ReevitCheckoutConfig,
+  method?: PaymentMethod,
+  options?: { preferredProvider?: string; allowedProviders?: string[] }
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    amount: config.amount,
+    currency: config.currency,
+    email: config.email || '',
+    phone: config.phone || '',
+    customerName: config.customerName || '',
+    paymentLinkCode: config.paymentLinkCode || '',
+    paymentMethods: config.paymentMethods || [],
+    metadata: config.metadata || {},
+    customFields: config.customFields || {},
+    method: method || '',
+    preferredProvider: options?.preferredProvider || '',
+    allowedProviders: options?.allowedProviders || [],
+    publicKey: config.publicKey || '',
+  };
+
+  if (config.reference) {
+    payload.reference = config.reference;
+  }
+
+  return payload;
+}
+
+function resolveIntentIdentity(
+  config: ReevitCheckoutConfig,
+  method?: PaymentMethod,
+  options?: { preferredProvider?: string; allowedProviders?: string[] }
+): { idempotencyKey: string; reference: string; cacheEntry?: IntentCacheEntry } {
+  pruneIntentCache();
+
+  const idempotencyKey =
+    config.idempotencyKey || generateIdempotencyKey(buildIdempotencyPayload(config, method, options));
+  const existing = getIntentCacheEntry(idempotencyKey);
+  const reference = config.reference || existing?.reference || generateReference();
+  const cacheEntry = setIntentCacheEntry(idempotencyKey, { reference });
+
+  return { idempotencyKey, reference, cacheEntry };
+}
+
+function isPaymentError(error: unknown): error is PaymentError {
+  return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
+}
 
 /**
  * Maps backend payment intent response to SDK PaymentIntent type
@@ -232,8 +325,15 @@ export function useReevit(options: UseReevitOptions) {
   // Create API client ref (stable across re-renders)
   const apiClientRef = useRef<ReevitAPIClient | null>(null);
 
-  // Guard against duplicate initialize() calls (React StrictMode)
-  const initializingRef = useRef(!!config.initialPaymentIntent);
+  const stateRef = useRef<ReevitState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // Track the current intent identity to allow re-init when it changes
+  const currentIntentKeyRef = useRef<string | null>(
+    config.initialPaymentIntent ? `initial:${config.initialPaymentIntent.id}` : null
+  );
   const initRequestIdRef = useRef(0);
 
   // Update state if config.initialPaymentIntent changes
@@ -241,8 +341,10 @@ export function useReevit(options: UseReevitOptions) {
     if (config.initialPaymentIntent) {
       if (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id) {
         dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
-        initializingRef.current = true;
+        currentIntentKeyRef.current = `initial:${config.initialPaymentIntent.id}`;
       }
+    } else if (currentIntentKeyRef.current?.startsWith('initial:')) {
+      currentIntentKeyRef.current = null;
     }
   }, [config.initialPaymentIntent, state.paymentIntent?.id]);
 
@@ -265,23 +367,18 @@ export function useReevit(options: UseReevitOptions) {
       method?: PaymentMethod,
       options?: { preferredProvider?: string; allowedProviders?: string[] }
     ) => {
-      // Guard against duplicate calls (especially in React StrictMode)
-      if (initializingRef.current) {
+      if (config.initialPaymentIntent) {
         return;
       }
-      initializingRef.current = true;
-      const requestId = ++initRequestIdRef.current;
 
-      dispatch({ type: 'INIT_START' });
+      let requestId = 0;
+      let intentKey: string | null = null;
 
       try {
         const apiClient = apiClientRef.current;
         if (!apiClient) {
           throw new Error('API client not initialized');
         }
-
-        // Generate reference if not provided
-        const reference = config.reference || generateReference();
 
         // Determine country from currency (can be enhanced with IP detection)
         const country = detectCountryFromCurrency(config.currency);
@@ -293,50 +390,53 @@ export function useReevit(options: UseReevitOptions) {
             : undefined;
         const paymentMethod = method ?? defaultMethod;
 
-        let data: PaymentIntentResponse | undefined;
-        let error: PaymentError | undefined;
+        const identity = resolveIntentIdentity(config, paymentMethod, options);
+        const { idempotencyKey, reference, cacheEntry } = identity;
+        intentKey = idempotencyKey;
 
-        if (config.paymentLinkCode) {
-          // Generate a deterministic idempotency key for payment link requests
-          const idempotencyKey = generateIdempotencyKey({
-            paymentLinkCode: config.paymentLinkCode,
-            amount: config.amount,
-            email: config.email || '',
-            phone: config.phone || '',
-            method: paymentMethod || '',
-            provider: options?.preferredProvider || options?.allowedProviders?.[0] || '',
-          });
+        if (currentIntentKeyRef.current === idempotencyKey && stateRef.current.paymentIntent) {
+          return;
+        }
 
-          const response = await fetch(
-            `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/pay/${config.paymentLinkCode}/pay`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Idempotency-Key': idempotencyKey,
-              },
-              body: JSON.stringify({
-                amount: config.amount,
-                email: config.email || '',
-                name: config.customerName || '',
-                phone: config.phone || '',
-                method: paymentMethod,
-                country,
-                provider: options?.preferredProvider || options?.allowedProviders?.[0],
-                custom_fields: config.customFields,
-              }),
+        currentIntentKeyRef.current = idempotencyKey;
+        requestId = ++initRequestIdRef.current;
+
+        if (stateRef.current.status !== 'loading') {
+          dispatch({ type: 'INIT_START' });
+        }
+
+        const requestIntent = async (): Promise<PaymentIntentResponse> => {
+          if (config.paymentLinkCode) {
+            const response = await fetch(
+              `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/pay/${config.paymentLinkCode}/pay`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Idempotency-Key': idempotencyKey,
+                },
+                body: JSON.stringify({
+                  amount: config.amount,
+                  email: config.email || '',
+                  name: config.customerName || '',
+                  phone: config.phone || '',
+                  method: paymentMethod,
+                  country,
+                  provider: options?.preferredProvider || options?.allowedProviders?.[0],
+                  custom_fields: config.customFields,
+                }),
+              }
+            );
+
+            const responseData = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw buildPaymentLinkError(response, responseData);
             }
-          );
-
-          const responseData = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            error = buildPaymentLinkError(response, responseData);
-          } else {
-            data = responseData as PaymentIntentResponse;
+            return responseData as PaymentIntentResponse;
           }
-        } else {
+
           const result = await apiClient.createPaymentIntent(
-            { ...config, reference },
+            { ...config, reference, idempotencyKey },
             paymentMethod,
             country,
             {
@@ -344,50 +444,61 @@ export function useReevit(options: UseReevitOptions) {
               allowedProviders: options?.allowedProviders,
             }
           );
-          data = result.data;
-          error = result.error;
+
+          if (result.error) {
+            throw result.error;
+          }
+
+          if (!result.data) {
+            throw {
+              code: 'INIT_FAILED',
+              message: 'No data received from API',
+              recoverable: true,
+            } as PaymentError;
+          }
+
+          return result.data;
+        };
+
+        let data: PaymentIntentResponse;
+        if (cacheEntry?.response) {
+          data = cacheEntry.response;
+        } else {
+          let intentPromise = cacheEntry?.promise;
+          if (!intentPromise) {
+            intentPromise = requestIntent();
+            setIntentCacheEntry(idempotencyKey, { promise: intentPromise });
+          }
+          data = await intentPromise;
+          setIntentCacheEntry(idempotencyKey, { response: data, promise: undefined });
         }
 
         if (requestId !== initRequestIdRef.current) {
-          return;
-        }
-
-        if (error) {
-          dispatch({ type: 'INIT_ERROR', payload: error });
-          onError?.(error);
-          return;
-        }
-
-        if (!data) {
-          const noDataError: PaymentError = {
-            code: 'INIT_FAILED',
-            message: 'No data received from API',
-            recoverable: true,
-          };
-          dispatch({ type: 'INIT_ERROR', payload: noDataError });
-          onError?.(noDataError);
-          initializingRef.current = false;
           return;
         }
 
         // Map response to PaymentIntent
-        const paymentIntent = mapToPaymentIntent(data, { ...config, reference });
+        const paymentIntent = mapToPaymentIntent(data, { ...config, reference, idempotencyKey });
 
         dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
-        // Don't reset initializingRef here - once initialized, stay initialized until reset()
       } catch (err) {
+        if (intentKey) {
+          clearIntentCacheEntry(intentKey);
+        }
+
         if (requestId !== initRequestIdRef.current) {
           return;
         }
-        const error: PaymentError = {
-          code: 'INIT_FAILED',
-          message: err instanceof Error ? err.message : 'Failed to initialize checkout',
-          recoverable: true,
-          originalError: err,
-        };
+        const error: PaymentError = isPaymentError(err)
+          ? err
+          : {
+            code: 'INIT_FAILED',
+            message: err instanceof Error ? err.message : 'Failed to initialize checkout',
+            recoverable: true,
+            originalError: err,
+          };
         dispatch({ type: 'INIT_ERROR', payload: error });
         onError?.(error);
-        initializingRef.current = false;
       }
     },
     [config, onError, apiBaseUrl]
@@ -496,7 +607,7 @@ export function useReevit(options: UseReevitOptions) {
       }
     }
 
-    initializingRef.current = false;
+    currentIntentKeyRef.current = null;
     initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
   }, [state.paymentIntent, state.status]);
