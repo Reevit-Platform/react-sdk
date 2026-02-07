@@ -293,6 +293,20 @@ function MpesaPayment() {
 | Monnify | NG | Card, Bank Transfer, USSD |
 | M-Pesa | KE, TZ | Mobile Money (STK Push) |
 
+## Release Notes
+
+### v0.7.0
+
+- Redesigned checkout UI with premium visual polish
+- New typography system: Grato Classic for body, ABC Repro Mono for amounts
+- Layered shadow system for natural depth
+- Replaced emoji icons with inline SVG icons (consistent cross-platform rendering)
+- New loading animation (three-dot pulse), success glow effect, and countdown bar
+- Improved dark mode contrast and surfaces
+- Mobile bottom-sheet pattern with touch-friendly targets (44px+)
+- Smoother animations with cubic-bezier easing curves
+- Removed external Google Fonts dependency (zero network requests for fonts)
+
 ## License
 
 MIT © [Reevit](https://reevit.io)

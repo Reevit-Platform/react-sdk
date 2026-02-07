@@ -1,31 +1,49 @@
 /**
  * @reevit/react - Checkout Widget Styles
- * Minimal design system matching Reevit dashboard
+ * Premium design system matching Reevit dashboard
  */
-
-/* Import Space Grotesk font */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 /* CSS Variables for theming - Light mode */
 :root {
+  /* Colors */
   --reevit-primary: #0ea5e9;
   --reevit-primary-hover: #0284c7;
   --reevit-primary-foreground: #ffffff;
-  --reevit-background: #f8fafc;
+  --reevit-background: #fafafa;
   --reevit-surface: #ffffff;
-  --reevit-border: rgba(15, 23, 42, 0.12);
-  --reevit-text: #0f172a;
-  --reevit-text-secondary: #475569;
-  --reevit-muted: #94a3b8;
+  --reevit-border: rgba(15, 23, 42, 0.08);
+  --reevit-text: #0a0a0a;
+  --reevit-text-secondary: #525252;
+  --reevit-muted: #a3a3a3;
   --reevit-success: #16a34a;
+  --reevit-success-rgb: 22, 163, 74;
   --reevit-error: #dc2626;
+  --reevit-error-rgb: 220, 38, 38;
   --reevit-warning: #f59e0b;
+
+  /* Radii */
   --reevit-radius: 0.75rem;
   --reevit-radius-sm: 0.5rem;
-  --reevit-radius-lg: 1.25rem;
-  --reevit-font: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
-  --reevit-shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.35);
-  --reevit-shadow-sm: 0 12px 24px -18px rgba(15, 23, 42, 0.3);
+  --reevit-radius-lg: 1.5rem;
+
+  /* Typography — Grato Classic for body, ABC Repro Mono for amounts */
+  --reevit-font: 'Grato Classic', 'Inter', system-ui, -apple-system, sans-serif;
+  --reevit-font-heading: 'ABC Repro Mono', ui-monospace, monospace;
+  --reevit-font-mono: 'ABC Repro Mono', ui-monospace, monospace;
+
+  /* Layered shadows for natural depth */
+  --reevit-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 16px -4px rgba(0, 0, 0, 0.06),
+    0 24px 48px -12px rgba(0, 0, 0, 0.08);
+  --reevit-shadow-sm:
+    0 0 0 1px rgba(0, 0, 0, 0.02),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  --reevit-shadow-hover:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 24px -4px rgba(0, 0, 0, 0.08);
 }
 
 /* Dark mode support */
@@ -33,16 +51,30 @@
   :root {
     --reevit-primary: #38bdf8;
     --reevit-primary-hover: #0ea5e9;
-    --reevit-primary-foreground: #0b1120;
-    --reevit-background: #0b1120;
-    --reevit-surface: #111827;
-    --reevit-border: rgba(148, 163, 184, 0.2);
-    --reevit-text: #f8fafc;
-    --reevit-text-secondary: #cbd5f5;
-    --reevit-muted: #94a3b8;
-    --reevit-success: #22c55e;
+    --reevit-primary-foreground: #0a0a0a;
+    --reevit-background: #0a0a0a;
+    --reevit-surface: #171717;
+    --reevit-border: rgba(255, 255, 255, 0.08);
+    --reevit-text: #fafafa;
+    --reevit-text-secondary: #a3a3a3;
+    --reevit-muted: #737373;
+    --reevit-success: #34d399;
+    --reevit-success-rgb: 52, 211, 153;
     --reevit-error: #f87171;
+    --reevit-error-rgb: 248, 113, 113;
     --reevit-warning: #fbbf24;
+    --reevit-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 12px 24px -4px rgba(0, 0, 0, 0.3),
+      0 24px 48px -12px rgba(0, 0, 0, 0.4);
+    --reevit-shadow-sm:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 1px 3px rgba(0, 0, 0, 0.3);
+    --reevit-shadow-hover:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 16px 32px -4px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -50,33 +82,37 @@
   --reevit-primary: #0ea5e9;
   --reevit-primary-hover: #0284c7;
   --reevit-primary-foreground: #ffffff;
-  --reevit-background: #f8fafc;
+  --reevit-background: #fafafa;
   --reevit-surface: #ffffff;
-  --reevit-border: rgba(15, 23, 42, 0.12);
-  --reevit-text: #0f172a;
-  --reevit-text-secondary: #475569;
-  --reevit-muted: #94a3b8;
+  --reevit-border: rgba(15, 23, 42, 0.08);
+  --reevit-text: #0a0a0a;
+  --reevit-text-secondary: #525252;
+  --reevit-muted: #a3a3a3;
+  --reevit-success-rgb: 22, 163, 74;
+  --reevit-error-rgb: 220, 38, 38;
 }
 
 .reevit-modal[data-reevit-theme="dark"] {
   --reevit-primary: #38bdf8;
   --reevit-primary-hover: #0ea5e9;
-  --reevit-primary-foreground: #0b1120;
-  --reevit-background: #0b1120;
-  --reevit-surface: #111827;
-  --reevit-border: rgba(148, 163, 184, 0.2);
-  --reevit-text: #f8fafc;
-  --reevit-text-secondary: #cbd5f5;
-  --reevit-muted: #94a3b8;
+  --reevit-primary-foreground: #0a0a0a;
+  --reevit-background: #0a0a0a;
+  --reevit-surface: #171717;
+  --reevit-border: rgba(255, 255, 255, 0.08);
+  --reevit-text: #fafafa;
+  --reevit-text-secondary: #a3a3a3;
+  --reevit-muted: #737373;
+  --reevit-success-rgb: 52, 211, 153;
+  --reevit-error-rgb: 248, 113, 113;
 }
 
 /* ===== OVERLAY ===== */
 .reevit-overlay {
   position: fixed;
   inset: 0;
-  background: radial-gradient(120% 120% at 50% 0%, rgba(14, 165, 233, 0.2), transparent 55%), rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -97,21 +133,35 @@
   border: 1px solid var(--reevit-border);
   box-shadow: var(--reevit-shadow);
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   min-height: 360px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   font-family: var(--reevit-font);
-  animation: reevit-slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: reevit-modal-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   transition: min-height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Subtle top accent line */
+  position: relative;
 }
 
-@keyframes reevit-slide-up {
+.reevit-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--reevit-primary), color-mix(in srgb, var(--reevit-primary) 40%, transparent));
+  border-radius: var(--reevit-radius-lg) var(--reevit-radius-lg) 0 0;
+  z-index: 1;
+}
+
+@keyframes reevit-modal-enter {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.98);
+    transform: translateY(16px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -120,7 +170,11 @@
 }
 
 .reevit-modal--success {
-  border-color: var(--reevit-success);
+  border-color: rgba(var(--reevit-success-rgb), 0.3);
+}
+
+.reevit-modal--success::before {
+  background: linear-gradient(90deg, rgb(var(--reevit-success-rgb)), rgba(var(--reevit-success-rgb), 0.3));
 }
 
 /* Modal Header */
@@ -128,7 +182,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 12px;
+  padding: 20px 24px 14px;
   background: var(--reevit-background);
 }
 
@@ -185,7 +239,7 @@
 
 /* Modal Amount */
 .reevit-modal__amount {
-  padding: 0 20px 16px;
+  padding: 0 24px 18px;
   text-align: left;
   background: var(--reevit-background);
   border-bottom: 1px solid var(--reevit-border);
@@ -193,33 +247,37 @@
 
 .reevit-modal__amount-label {
   display: block;
+  font-family: var(--reevit-font);
   font-size: 11px;
   font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--reevit-muted);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .reevit-modal__amount-value {
   display: block;
-  font-size: 28px;
+  font-family: var(--reevit-font-heading);
+  font-size: 36px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--reevit-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 /* Modal Content */
 .reevit-modal__content {
   flex: 1;
   overflow-y: auto;
-  padding: 0 20px 20px;
+  padding: 20px 24px 24px;
   background: var(--reevit-background);
 }
 
 /* Modal Footer */
 .reevit-modal__footer {
-  padding: 12px 20px;
+  padding: 12px 24px;
   text-align: center;
   background: var(--reevit-background);
   border-top: 1px solid var(--reevit-border);
@@ -228,19 +286,22 @@
 .reevit-modal__secured {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 5px;
+  font-family: var(--reevit-font);
+  font-size: 10px;
   font-weight: 400;
   color: var(--reevit-muted);
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
 
 .reevit-modal__secured svg {
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .reevit-modal__secured-brand {
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* ===== PSP SELECTOR ===== */
@@ -286,7 +347,7 @@
 
 .reevit-psp-option--selected {
   border-color: var(--reevit-primary);
-  background: color-mix(in srgb, var(--reevit-primary) 5%, var(--reevit-surface));
+  background: color-mix(in srgb, var(--reevit-primary) 4%, var(--reevit-surface));
   border-radius: var(--reevit-radius) var(--reevit-radius) 0 0;
 }
 
@@ -326,7 +387,8 @@
 
 .reevit-psp-option__name {
   display: block;
-  font-size: 15px;
+  font-family: var(--reevit-font);
+  font-size: 14px;
   font-weight: 600;
   color: var(--reevit-text);
   letter-spacing: -0.01em;
@@ -334,7 +396,8 @@
 
 .reevit-psp-option__methods {
   display: block;
-  font-size: 13px;
+  font-family: var(--reevit-font);
+  font-size: 12px;
   color: var(--reevit-text-secondary);
   margin-top: 3px;
 }
@@ -411,27 +474,24 @@
   border-top: 1px solid var(--reevit-border);
 }
 
-/* Back button */
+/* Back button — text link style */
 .reevit-psp-back-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  margin-bottom: 14px;
-  background: var(--reevit-background);
-  border: 1px solid var(--reevit-border);
-  border-radius: var(--reevit-radius-sm);
-  color: var(--reevit-text-secondary);
+  gap: 4px;
+  padding: 6px 0;
+  margin-bottom: 12px;
+  background: none;
+  border: none;
+  color: var(--reevit-muted);
   font-family: var(--reevit-font);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .reevit-psp-back-button:hover {
-  background: var(--reevit-surface);
-  border-color: var(--reevit-text-secondary);
   color: var(--reevit-text);
 }
 
@@ -442,6 +502,11 @@
 
 .reevit-psp-back-button svg {
   flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.reevit-psp-back-button:hover svg {
+  transform: translateX(-2px);
 }
 
 .reevit-psp-methods {
@@ -450,22 +515,24 @@
 
 /* ===== PAYMENT METHOD SELECTOR ===== */
 .reevit-method-selector {
-  margin-bottom: 16px;
+  margin-bottom: 0;
   width: 100%;
 }
 
 .reevit-method-selector__label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--reevit-text);
-  opacity: 0.7;
-  margin-bottom: 12px;
+  font-family: var(--reevit-font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--reevit-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
 }
 
 .reevit-method-selector__options--grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -534,7 +601,14 @@
 }
 
 .reevit-method-option--grid .reevit-method-option__icon {
-  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reevit-method-option--grid .reevit-method-option__icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 .reevit-method-option--grid .reevit-method-option__label {
@@ -558,33 +632,59 @@
   border-bottom: 1px solid var(--reevit-border);
   border-radius: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: left;
   width: 100%;
   position: relative;
+  animation: reevit-slide-up 0.25s ease-out both;
 }
+
+.reevit-method-option--list:nth-child(2) { animation-delay: 0.04s; }
+.reevit-method-option--list:nth-child(3) { animation-delay: 0.08s; }
+.reevit-method-option--list:nth-child(4) { animation-delay: 0.12s; }
+.reevit-method-option--list:nth-child(5) { animation-delay: 0.16s; }
 
 .reevit-method-option--list:last-child {
   border-bottom: none;
 }
 
 .reevit-method-option--list:hover:not(.reevit-method-option--disabled) {
-  background: color-mix(in srgb, var(--reevit-primary) 4%, transparent);
+  background: color-mix(in srgb, var(--reevit-text) 3%, transparent);
 }
 
 .reevit-method-option--list.reevit-method-option--selected {
   background: color-mix(in srgb, var(--reevit-primary) 6%, transparent);
+  border: 1px solid var(--reevit-primary);
+  border-radius: var(--reevit-radius);
 }
 
 .reevit-method-option--list .reevit-method-option__icon-wrapper {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  min-width: fit-content;
+  justify-content: center;
+  width: 40px;
   height: 40px;
-  background: transparent;
+  background: color-mix(in srgb, var(--reevit-text) 5%, transparent);
+  border-radius: 10px;
   flex-shrink: 0;
-  font-size: 22px;
+  color: var(--reevit-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.reevit-method-option--list:hover .reevit-method-option__icon-wrapper {
+  background: color-mix(in srgb, var(--reevit-primary) 10%, transparent);
+  color: var(--reevit-primary);
+}
+
+.reevit-method-option--list.reevit-method-option--selected .reevit-method-option__icon-wrapper {
+  background: color-mix(in srgb, var(--reevit-primary) 14%, transparent);
+  color: var(--reevit-primary);
+}
+
+.reevit-method-option--list .reevit-method-option__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reevit-method-option--list .reevit-method-option__content {
@@ -597,17 +697,23 @@
 
 .reevit-method-option--list .reevit-method-option__label {
   display: block;
-  font-size: 15px;
+  font-family: var(--reevit-font);
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--reevit-text);
   margin-bottom: 2px;
   letter-spacing: -0.01em;
 }
 
+.reevit-method-option--list.reevit-method-option--selected .reevit-method-option__label {
+  color: var(--reevit-primary);
+}
+
 .reevit-method-option--list .reevit-method-option__description {
   display: block;
-  font-size: 13px;
-  color: var(--reevit-text-secondary);
+  font-family: var(--reevit-font);
+  font-size: 11.5px;
+  color: var(--reevit-muted);
   line-height: 1.4;
 }
 
@@ -615,16 +721,19 @@
   color: var(--reevit-muted);
   flex-shrink: 0;
   transition: all 0.2s ease;
+  opacity: 0.5;
 }
 
 .reevit-method-option--list:hover .reevit-method-option__chevron {
-  color: var(--reevit-primary);
+  color: var(--reevit-text);
   transform: translateX(2px);
+  opacity: 1;
 }
 
 .reevit-method-option--list .reevit-method-option__check {
   color: var(--reevit-primary);
   flex-shrink: 0;
+  animation: reevit-pop 0.25s ease-out;
 }
 
 .reevit-method-option--list.reevit-method-option--selected .reevit-method-option__chevron {
@@ -639,26 +748,47 @@
 .reevit-method-option__logos {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .reevit-method-option__logo-img {
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   border-radius: 6px;
-  background: #f8fafc;
-  padding: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: var(--reevit-surface);
+  padding: 2px;
+  border: 1px solid var(--reevit-border);
 }
 
 .reevit-method-option--grid .reevit-method-option__logos {
-  gap: 6px;
+  gap: 4px;
 }
 
 .reevit-method-option--grid .reevit-method-option__logo-img {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+}
+
+/* ===== INLINE ACTION (appears after method selection) ===== */
+.reevit-inline-action,
+.reevit-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--reevit-text) 2%, transparent);
+  border-radius: var(--reevit-radius);
+  border: 1px solid var(--reevit-border);
+}
+
+.reevit-inline-action__hint,
+.reevit-info-text {
+  font-family: var(--reevit-font);
+  font-size: 12.5px;
+  color: var(--reevit-text-secondary);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* ===== MOBILE MONEY FORM ===== */
@@ -774,44 +904,48 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 18px;
+  padding: 11px 20px;
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--reevit-radius);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--reevit-font);
   border: none;
-  min-height: 42px;
+  min-height: 44px;
   letter-spacing: -0.01em;
 }
 
 .reevit-btn--primary {
   flex: 1;
-  background: var(--reevit-primary);
+  background: linear-gradient(180deg, var(--reevit-primary), var(--reevit-primary-hover));
   color: var(--reevit-primary-foreground);
-  border: 1px solid color-mix(in srgb, var(--reevit-primary) 60%, var(--reevit-border));
+  border: 1px solid color-mix(in srgb, var(--reevit-primary) 60%, transparent);
+  box-shadow: var(--reevit-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .reevit-btn--primary:hover:not(:disabled) {
-  background: var(--reevit-primary-hover);
+  background: linear-gradient(180deg, var(--reevit-primary-hover), color-mix(in srgb, var(--reevit-primary-hover) 85%, black));
   border-color: var(--reevit-primary-hover);
+  box-shadow: var(--reevit-shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
-.reevit-btn--primary:focus:not(:disabled) {
-  outline: none;
-  border-color: var(--reevit-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--reevit-primary) 25%, transparent);
+.reevit-btn--primary:focus-visible:not(:disabled) {
+  outline: 2px solid var(--reevit-primary);
+  outline-offset: 2px;
 }
 
 .reevit-btn--primary:active:not(:disabled) {
   background: var(--reevit-primary-hover);
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--reevit-shadow-sm);
 }
 
 .reevit-btn--primary:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .reevit-btn--secondary {
@@ -821,64 +955,41 @@
 }
 
 .reevit-btn--secondary:hover:not(:disabled) {
-  background: transparent;
-  border-color: var(--reevit-text);
+  background: color-mix(in srgb, var(--reevit-text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--reevit-text) 20%, var(--reevit-border));
 }
 
-.reevit-btn--secondary:focus:not(:disabled) {
-  outline: none;
-  border-color: var(--reevit-text);
-  box-shadow: 0 0 0 2px var(--reevit-border);
+.reevit-btn--secondary:focus-visible:not(:disabled) {
+  outline: 2px solid var(--reevit-text);
+  outline-offset: 2px;
 }
 
 .reevit-trigger-btn {
-  padding: 10px 18px;
+  padding: 11px 20px;
   font-size: 13px;
   font-weight: 600;
-  background: var(--reevit-primary);
+  background: linear-gradient(180deg, var(--reevit-primary), var(--reevit-primary-hover));
   color: var(--reevit-primary-foreground);
-  border: 1px solid color-mix(in srgb, var(--reevit-primary) 70%, var(--reevit-border));
+  border: 1px solid color-mix(in srgb, var(--reevit-primary) 60%, transparent);
   border-radius: var(--reevit-radius);
   cursor: pointer;
   font-family: var(--reevit-font);
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   letter-spacing: -0.01em;
+  min-height: 44px;
+  box-shadow: var(--reevit-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .reevit-trigger-btn:hover {
-  background: var(--reevit-primary-hover);
+  background: linear-gradient(180deg, var(--reevit-primary-hover), color-mix(in srgb, var(--reevit-primary-hover) 85%, black));
   border-color: var(--reevit-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--reevit-shadow-hover);
 }
 
-.reevit-trigger-btn:focus {
-  outline: none;
-  border-color: var(--reevit-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--reevit-primary) 25%, transparent);
-}
-
-/* Dark mode button overrides */
-@media (prefers-color-scheme: dark) {
-  .reevit-btn--primary {
-    background: var(--reevit-primary);
-    color: var(--reevit-primary-foreground);
-  }
-  
-  .reevit-btn--primary:hover:not(:disabled) {
-    background: var(--reevit-primary-hover);
-  }
-  
-  .reevit-btn--primary:active:not(:disabled) {
-    background: var(--reevit-primary-hover);
-  }
-  
-  .reevit-trigger-btn {
-    background: var(--reevit-primary);
-    color: var(--reevit-primary-foreground);
-  }
-  
-  .reevit-trigger-btn:hover {
-    background: var(--reevit-primary-hover);
-  }
+.reevit-trigger-btn:focus-visible {
+  outline: 2px solid var(--reevit-primary);
+  outline-offset: 2px;
 }
 
 /* ===== STATES ===== */
@@ -889,12 +1000,77 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 48px 24px;
   text-align: center;
   gap: 12px;
 }
 
-/* Success icon wrapper */
+/* ===== LOADING — Three-dot pulse ===== */
+.reevit-loading {
+  gap: 16px;
+}
+
+.reevit-dot-pulse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reevit-dot-pulse__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--reevit-text);
+  opacity: 0.3;
+  animation: reevit-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.reevit-dot-pulse__dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.reevit-dot-pulse__dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes reevit-dot-pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.reevit-loading p {
+  font-family: var(--reevit-font);
+  font-size: 12px;
+  color: var(--reevit-muted);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Legacy spinner (kept for backwards compat) */
+.reevit-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--reevit-border);
+  border-top-color: var(--reevit-text);
+  border-radius: 50%;
+  animation: reevit-spin 0.7s linear infinite;
+}
+
+@keyframes reevit-spin {
+  to { transform: rotate(360deg); }
+}
+
+.reevit-loading .reevit-spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 2px;
+}
+
+/* ===== SUCCESS ===== */
+.reevit-success {
+  position: relative;
+}
+
 .reevit-success__icon-wrapper {
   margin-bottom: 8px;
 }
@@ -903,12 +1079,18 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--reevit-success), #10b981);
+  background: linear-gradient(135deg, rgb(var(--reevit-success-rgb)), #10b981);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: reevit-pop 0.4s ease-out;
-  box-shadow: 0 8px 24px -8px var(--reevit-success);
+  animation: reevit-pop 0.4s ease-out, reevit-glow 2s ease-out 0.4s;
+  box-shadow: 0 0 0 0 rgba(var(--reevit-success-rgb), 0);
+}
+
+@keyframes reevit-glow {
+  0% { box-shadow: 0 0 0 0 rgba(var(--reevit-success-rgb), 0.4); }
+  70% { box-shadow: 0 0 0 24px rgba(var(--reevit-success-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--reevit-success-rgb), 0); }
 }
 
 .reevit-success__checkmark {
@@ -939,40 +1121,61 @@
 }
 
 .reevit-success__title {
+  font-family: var(--reevit-font);
   font-size: 18px !important;
   font-weight: 600;
   color: var(--reevit-text);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .reevit-success__amount {
-  font-size: 24px !important;
+  font-family: var(--reevit-font-heading);
+  font-size: 28px !important;
   font-weight: 700;
   color: var(--reevit-success);
   margin: 4px 0 !important;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
 }
 
 .reevit-success__reference {
-  font-size: 12px !important;
+  font-family: var(--reevit-font-mono);
+  font-size: 11px !important;
   color: var(--reevit-text-secondary);
   margin: 0 !important;
-  font-family: monospace;
-  background: var(--reevit-border);
-  padding: 6px 12px;
+  background: color-mix(in srgb, var(--reevit-text) 5%, transparent);
+  padding: 6px 14px;
   border-radius: var(--reevit-radius-sm);
+  letter-spacing: 0.02em;
 }
 
 .reevit-success__redirect {
+  font-family: var(--reevit-font);
   font-size: 11px !important;
   color: var(--reevit-muted);
   margin-top: 8px !important;
   animation: reevit-pulse 1.5s ease-in-out infinite;
 }
 
+/* Countdown bar for auto-close */
+.reevit-success__countdown {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgb(var(--reevit-success-rgb));
+  border-radius: 0 0 var(--reevit-radius-lg) var(--reevit-radius-lg);
+  animation: reevit-countdown 5s linear forwards;
+}
+
+@keyframes reevit-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 @keyframes reevit-pulse {
-  0%, 100% { opacity: 0.6; }
+  0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
 }
 
@@ -990,65 +1193,43 @@
   animation: reevit-pop 0.3s ease-out;
 }
 
+/* ===== ERROR ===== */
 .reevit-error__icon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--reevit-error);
-  color: white;
+  background: rgba(var(--reevit-error-rgb), 0.1);
+  color: rgb(var(--reevit-error-rgb));
   font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(var(--reevit-error-rgb), 0.2);
 }
 
 @keyframes reevit-pop {
   0% { transform: scale(0); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 
 .reevit-success h3,
 .reevit-error h3 {
-  font-size: 14px;
+  font-family: var(--reevit-font);
+  font-size: 15px;
   font-weight: 600;
   color: var(--reevit-text);
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .reevit-success p,
 .reevit-error p {
-  font-size: 12px;
+  font-family: var(--reevit-font);
+  font-size: 13px;
   color: var(--reevit-text-secondary);
   margin: 0;
-}
-
-/* ===== SPINNER ===== */
-.reevit-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--reevit-border);
-  border-top-color: var(--reevit-text);
-  border-radius: 50%;
-  animation: reevit-spin 0.7s linear infinite;
-}
-
-@keyframes reevit-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Large spinner for loading states */
-.reevit-loading .reevit-spinner {
-  width: 32px;
-  height: 32px;
-  border-width: 2px;
-}
-
-.reevit-loading p {
-  font-size: 12px;
-  color: var(--reevit-text-secondary);
-  margin: 0;
+  line-height: 1.5;
 }
 
 /* ===== PSP BRIDGE ===== */
@@ -1070,7 +1251,15 @@
 
 /* ===== METHOD STEP ACTIONS ===== */
 .reevit-method-step__actions {
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+/* When logos are shown inside icon-wrapper in list mode, remove the bg container */
+.reevit-method-option--list .reevit-method-option__icon-wrapper:has(.reevit-method-option__logos) {
+  background: transparent;
+  width: auto;
+  height: auto;
+  border-radius: 0;
 }
 
 /* ===== STRIPE BRIDGE ===== */
@@ -1134,39 +1323,43 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--reevit-radius);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--reevit-font);
   min-height: 44px;
   letter-spacing: -0.01em;
-  background: var(--reevit-primary);
+  background: linear-gradient(180deg, var(--reevit-primary), var(--reevit-primary-hover));
   color: var(--reevit-primary-foreground);
-  border: 1px solid color-mix(in srgb, var(--reevit-primary) 60%, var(--reevit-border));
+  border: 1px solid color-mix(in srgb, var(--reevit-primary) 60%, transparent);
+  box-shadow: var(--reevit-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .reevit-submit-btn:hover:not(:disabled) {
-  background: var(--reevit-primary-hover);
+  background: linear-gradient(180deg, var(--reevit-primary-hover), color-mix(in srgb, var(--reevit-primary-hover) 85%, black));
   border-color: var(--reevit-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--reevit-shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.reevit-submit-btn:focus:not(:disabled) {
-  outline: none;
-  border-color: var(--reevit-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--reevit-primary) 25%, transparent);
+.reevit-submit-btn:focus-visible:not(:disabled) {
+  outline: 2px solid var(--reevit-primary);
+  outline-offset: 2px;
 }
 
 .reevit-submit-btn:active:not(:disabled) {
   background: var(--reevit-primary-hover);
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--reevit-shadow-sm);
 }
 
 .reevit-submit-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Cancel Button - Secondary action */
@@ -1175,12 +1368,12 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--reevit-radius);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--reevit-font);
   min-height: 44px;
   letter-spacing: -0.01em;
@@ -1190,52 +1383,73 @@
 }
 
 .reevit-cancel-btn:hover:not(:disabled) {
-  background: transparent;
-  border-color: var(--reevit-text);
+  background: color-mix(in srgb, var(--reevit-text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--reevit-text) 20%, var(--reevit-border));
 }
 
-.reevit-cancel-btn:focus:not(:disabled) {
-  outline: none;
-  border-color: var(--reevit-text);
-  box-shadow: 0 0 0 2px var(--reevit-border);
+.reevit-cancel-btn:focus-visible:not(:disabled) {
+  outline: 2px solid var(--reevit-text);
+  outline-offset: 2px;
 }
 
 .reevit-cancel-btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .reevit-cancel-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Dark mode button overrides for Stripe */
-@media (prefers-color-scheme: dark) {
-  .reevit-submit-btn {
-    background: var(--reevit-primary);
-    color: var(--reevit-primary-foreground);
-  }
-  
-  .reevit-submit-btn:hover:not(:disabled) {
-    background: var(--reevit-primary-hover);
-  }
-  
-  .reevit-submit-btn:active:not(:disabled) {
-    background: var(--reevit-primary-hover);
-  }
-}
-
-/* ===== RESPONSIVE ===== */
+/* ===== RESPONSIVE — Bottom sheet on mobile ===== */
 @media (max-width: 480px) {
+  .reevit-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
   .reevit-modal {
     max-width: 100%;
-    max-height: 100%;
+    max-height: 92vh;
     border-radius: var(--reevit-radius-lg) var(--reevit-radius-lg) 0 0;
-    margin-top: auto;
+    animation: reevit-sheet-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .reevit-modal::before {
+    border-radius: var(--reevit-radius-lg) var(--reevit-radius-lg) 0 0;
+  }
+
+  /* Drag handle indicator */
+  .reevit-modal__header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--reevit-border);
+  }
+
+  .reevit-modal__header {
+    position: relative;
+    padding-top: 24px;
+  }
+
+  @keyframes reevit-sheet-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .reevit-modal__amount-value {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .reevit-momo-form__networks {
@@ -1248,5 +1462,11 @@
 
   .reevit-btn--secondary {
     flex: none;
+  }
+
+  /* Ensure touch targets */
+  .reevit-method-option--list,
+  .reevit-psp-option {
+    min-height: 52px;
   }
 }

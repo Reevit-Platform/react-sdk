@@ -419,17 +419,21 @@ export function ReevitCheckout({
 
   // Render content based on state
   const renderContent = () => {
-    // Loading state
+    // Loading state — three-dot pulse animation
     if (status === 'loading' || status === 'processing') {
       return (
         <div className="reevit-loading reevit-animate-fade-in">
-          <div className="reevit-spinner" />
+          <div className="reevit-dot-pulse">
+            <span className="reevit-dot-pulse__dot" />
+            <span className="reevit-dot-pulse__dot" />
+            <span className="reevit-dot-pulse__dot" />
+          </div>
           <p>{status === 'loading' ? 'Preparing checkout...' : 'Processing payment...'}</p>
         </div>
       );
     }
 
-    // Success state
+    // Success state — checkmark with glow + countdown bar
     if (status === 'success' && result) {
       return (
         <div className="reevit-success reevit-animate-scale-in">
@@ -445,15 +449,24 @@ export function ReevitCheckout({
           <p className="reevit-success__amount">{formatAmount(amount, currency)}</p>
           <p className="reevit-success__reference">Reference: {result.reference}</p>
           <p className="reevit-success__redirect">Redirecting in a moment...</p>
+          <div
+            className="reevit-success__countdown"
+            style={{ animationDuration: `${successDelayMs}ms` }}
+          />
         </div>
       );
     }
 
-    // Error state
+    // Error state — animated X icon
     if (status === 'failed' && error && !error.recoverable) {
       return (
         <div className="reevit-error reevit-animate-fade-in">
-          <div className="reevit-error__icon">✕</div>
+          <div className="reevit-error__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </div>
           <h3>Payment Failed</h3>
           <p>{error.message}</p>
           <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>
@@ -577,7 +590,13 @@ export function ReevitCheckout({
         default:
           return (
             <div className="reevit-error">
-              <div className="reevit-error__icon">⚠️</div>
+              <div className="reevit-error__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
               <h3>Provider Not Supported</h3>
               <p>Provider ({psp}) is not supported.</p>
               <button className="reevit-btn reevit-btn--primary" onClick={handleBack}>Go Back</button>

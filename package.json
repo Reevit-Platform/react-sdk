@@ -1,6 +1,6 @@
 {
   "name": "@reevit/react",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Reevit React SDK - Unified Payment Widget",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "preview": "cd preview && npx vite",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
