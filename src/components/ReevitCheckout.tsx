@@ -516,10 +516,11 @@ export function ReevitCheckout({
               merchantAccount={paymentIntent?.pspCredentials?.merchantAccount || ''}
               amount={paymentIntent?.amount ?? amount}
               currency={paymentIntent?.currency ?? currency}
-              reference={paymentIntent?.reference || reference}
+              reference={paymentIntent?.providerRefId || paymentIntent?.reference || reference}
               email={email}
               phone={momoData?.phone || phone}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
+              callbackUrl={`${apiBaseUrl || 'https://api.reevit.io'}/v1/webhooks/incoming/hubtel`}
               hubtelSessionToken={paymentIntent?.id ? paymentIntent.id : undefined}
               clientSecret={paymentIntent?.clientSecret}
               apiBaseUrl={apiBaseUrl}
