@@ -12,6 +12,46 @@ import CheckoutSdk from '@hubteljs/checkout';
 import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
 
+const DEFAULT_REEVIT_API_BASE_URL = 'https://api.reevit.io';
+
+function getHubtelCallbackURL(apiBaseUrl?: string): string {
+  return `${apiBaseUrl || DEFAULT_REEVIT_API_BASE_URL}/v1/webhooks/incoming/hubtel`;
+}
+
+function parseHubtelCallbackPayload(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object') {
+    return {};
+  }
+
+  const raw = input as Record<string, unknown>;
+  const nested = raw.data;
+  if (typeof nested === 'string') {
+    try {
+      const parsed = JSON.parse(nested) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        return { ...raw, ...(parsed as Record<string, unknown>) };
+      }
+    } catch {
+      // Ignore parsing errors and fall back to raw payload.
+    }
+  } else if (nested && typeof nested === 'object') {
+    return { ...raw, ...(nested as Record<string, unknown>) };
+  }
+
+  return raw;
+}
+
+function readHubtelField(payload: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
 interface HubtelBridgeProps {
   paymentId: string;
   publicKey?: string;
@@ -120,13 +160,13 @@ export function HubtelBridge({
         purchaseDescription: description,
         customerPhoneNumber: phone || '',
         ...(email ? { customerEmail: email } : {}),
-        clientReference: reference || `hubtel_${Date.now()}`,
+        clientReference: reference || paymentId || `hubtel_${Date.now()}`,
         ...(methodPreference ? { paymentMethod: methodPreference } : {}),
       };
 
       const config = {
         branding: 'enabled' as const,
-        callbackUrl: callbackUrl || window.location.href,
+        callbackUrl: callbackUrl || getHubtelCallbackURL(apiBaseUrl),
         merchantAccount: typeof resolvedMerchantAccount === 'string'
           ? parseInt(resolvedMerchantAccount, 10)
           : resolvedMerchantAccount,
@@ -140,24 +180,43 @@ export function HubtelBridge({
         callBacks: {
           onInit: () => console.log('Hubtel checkout initialized'),
           onPaymentSuccess: (data: any) => {
+            const payload = parseHubtelCallbackPayload(data);
+            const transactionReference = readHubtelField(payload, [
+              'transactionId',
+              'transaction_id',
+              'transactionReference',
+              'paymentReference',
+              'checkoutId',
+            ]);
+            const clientReference = readHubtelField(payload, ['clientReference', 'client_reference']);
             const result: PaymentResult = {
-              paymentId: (data.transactionId as string) || reference || '',
-              reference: (data.clientReference as string) || reference || '',
+              paymentId: paymentId,
+              reference: clientReference || reference || paymentId,
               amount: amount,
               currency: currency || 'GHS',
               paymentMethod: preferredMethod || 'mobile_money',
               psp: 'hubtel',
-              pspReference: (data.transactionId as string) || '',
+              pspReference: transactionReference || paymentId,
               status: 'success',
+              metadata: {
+                hubtel_payload: payload,
+                hubtel_raw: data,
+              },
             };
             onSuccess(result);
             checkout.closePopUp();
           },
           onPaymentFailure: (data: any) => {
+            const payload = parseHubtelCallbackPayload(data);
             const error: PaymentError = {
               code: 'PAYMENT_FAILED',
-              message: (data.message as string) || 'Payment failed',
+              message:
+                readHubtelField(payload, ['message', 'error', 'reason']) ||
+                'Payment failed',
               recoverable: true,
+              details: {
+                hubtel_payload: payload,
+              },
             };
             onError(error);
           },
@@ -182,6 +241,8 @@ export function HubtelBridge({
     phone,
     description,
     callbackUrl,
+    paymentId,
+    apiBaseUrl,
     authValue,
     isLoading,
     preferredMethod,
@@ -219,6 +280,7 @@ export function openHubtelPopup(config: {
   amount: number;
   clientReference?: string;
   callbackUrl?: string;
+  apiBaseUrl?: string;
   customerPhoneNumber?: string;
   basicAuth?: string;
   preferredMethod?: PaymentMethod;
@@ -241,7 +303,7 @@ export function openHubtelPopup(config: {
 
   const checkoutConfig = {
     branding: 'enabled' as const,
-    callbackUrl: config.callbackUrl || window.location.href,
+    callbackUrl: config.callbackUrl || getHubtelCallbackURL(config.apiBaseUrl),
     merchantAccount: typeof config.merchantAccount === 'string'
       ? parseInt(config.merchantAccount, 10)
       : config.merchantAccount,
@@ -254,11 +316,11 @@ export function openHubtelPopup(config: {
     config: checkoutConfig,
     callBacks: {
       onPaymentSuccess: (data: any) => {
-        config.onSuccess?.(data);
+        config.onSuccess?.(parseHubtelCallbackPayload(data));
         checkout.closePopUp();
       },
       onPaymentFailure: (data: any) => {
-        config.onError?.(data);
+        config.onError?.(parseHubtelCallbackPayload(data));
       },
       onClose: () => {
         config.onClose?.();

@@ -297,7 +297,8 @@ function mapToPaymentIntent(
     status: response.status as 'pending' | 'requires_action' | 'processing' | 'succeeded' | 'failed' | 'canceled' | 'cancelled',
     recommendedPsp: mapProviderToPsp(response.provider),
     availableMethods: config.paymentMethods || ['card', 'mobile_money'],
-    reference: response.reference || response.id, // Use backend reference or fallback to ID
+    providerRefId: response.provider_ref_id,
+    reference: response.reference || response.provider_ref_id || response.id, // Use backend reference or fallback to provider ref then ID
     orgId: response.org_id,
     connectionId: response.connection_id,
     provider: response.provider,
