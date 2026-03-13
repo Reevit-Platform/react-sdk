@@ -23,6 +23,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Report dependency audit
+        run: npm audit --audit-level=high || true
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
       - name: Build
         run: npm run build
 
@@ -32,3 +38,32 @@ jobs:
           test -f dist/index.d.ts || (echo "Build failed - no types" && exit 1)
           test -f dist/styles.css || (echo "Build failed - no styles" && exit 1)
           echo "Build successful!"
+
+      - name: Verify checked-in dist is up to date
+        run: |
+          if [ -n "$(git ls-files 'dist/*' 'dist/**')" ]; then
+            git diff --exit-code -- dist
+          fi
+
+      - name: Validate tracked package files
+        run: |
+          python3 - <<'PY'
+          import pathlib, subprocess, sys
+          root = pathlib.Path('.')
+          tracked = subprocess.check_output(['git', 'ls-files', '-z'], text=True).split('\0')
+          errors = []
+          for rel in filter(None, tracked):
+              if rel.endswith('.gitkeep'):
+                  continue
+              path = root / rel
+              if rel.endswith(('.new', '.tmp', '.bak', '.orig')):
+                  errors.append(f"tracked temp file: {rel}")
+              if path.is_file() and path.stat().st_size == 0:
+                  errors.append(f"empty tracked file: {rel}")
+              if rel.startswith('src/assets/') and rel.endswith('.png'):
+                  if path.read_bytes()[:8] != b'\x89PNG\r\n\x1a\n':
+                      errors.append(f"invalid PNG asset: {rel}")
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          PY

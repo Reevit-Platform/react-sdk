@@ -230,7 +230,7 @@ function PreviewApp() {
                 </p>
 
                 <ReevitCheckout
-                  publicKey="pk_test_preview"
+                  publicKey="pfk_test_preview"
                   amount={amount}
                   currency={currency}
                   email="test@example.com"
