@@ -120,18 +120,13 @@ export interface ReevitAPIClientConfig {
 
 // Default API base URLs
 const API_BASE_URL_PRODUCTION = 'https://api.reevit.io';
-const API_BASE_URL_SANDBOX = 'https://sandbox-api.reevit.io';
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 /**
  * Determines if a public key is for sandbox mode
  */
 function isSandboxKey(publicKey: string): boolean {
-  // Support various test/sandbox key prefixes
-  return publicKey.startsWith('pk_test_') ||
-    publicKey.startsWith('pk_sandbox_') ||
-    publicKey.startsWith('pfk_test_') ||
-    publicKey.startsWith('pfk_sandbox_');
+  return publicKey.startsWith('pfk_test_');
 }
 
 /**
@@ -187,9 +182,7 @@ export class ReevitAPIClient {
 
   constructor(config: ReevitAPIClientConfig) {
     this.publicKey = config.publicKey || '';
-    this.baseUrl = config.baseUrl || (config.publicKey && isSandboxKey(config.publicKey)
-      ? API_BASE_URL_SANDBOX
-      : API_BASE_URL_PRODUCTION);
+    this.baseUrl = config.baseUrl || API_BASE_URL_PRODUCTION;
     this.timeout = config.timeout || DEFAULT_TIMEOUT;
   }
 
@@ -210,7 +203,7 @@ export class ReevitAPIClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.5.9',
+      'X-Reevit-Client-Version': '0.8.1',
     };
     if (this.publicKey) {
       headers['X-Reevit-Key'] = this.publicKey;
@@ -338,7 +331,10 @@ export class ReevitAPIClient {
    * Confirms a payment intent after PSP callback (public endpoint)
    */
   async confirmPaymentIntent(paymentId: string, clientSecret: string): Promise<{ data?: PaymentDetailResponse; error?: PaymentError }> {
-    return this.request<PaymentDetailResponse>('POST', `/v1/payments/${paymentId}/confirm-intent?client_secret=${clientSecret}`);
+    return this.request<PaymentDetailResponse>(
+      'POST',
+      `/v1/payments/${paymentId}/confirm-intent?client_secret=${encodeURIComponent(clientSecret)}`
+    );
   }
 
   /**

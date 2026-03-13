@@ -19,7 +19,7 @@ import '@reevit/react/styles.css';
 function App() {
   return (
     <ReevitCheckout
-      publicKey="pk_test_your_key"
+      publicKey="pfk_test_your_key"
       amount={10000} // Amount in smallest unit (e.g., pesewas for GHS)
       currency="GHS"
       email="customer@example.com"
@@ -44,7 +44,7 @@ Provide an `idempotencyKey` tied to your order/cart to avoid duplicate intent cr
 
 ```tsx
 <ReevitCheckout
-  publicKey="pk_test_your_key"
+  publicKey="pfk_test_your_key"
   amount={10000}
   currency="GHS"
   idempotencyKey="order_12345"
@@ -73,7 +73,7 @@ You can control the open state yourself.
 const [open, setOpen] = useState(false);
 
 <ReevitCheckout
-  publicKey="pk_test_your_key"
+  publicKey="pfk_test_your_key"
   amount={10000}
   currency="GHS"
   isOpen={open}
@@ -131,7 +131,7 @@ function CustomCheckout() {
     isLoading
   } = useReevit({
     config: {
-      publicKey: 'pk_test_xxx',
+      publicKey: 'pfk_test_xxx',
       amount: 5000,
       currency: 'GHS',
     },
