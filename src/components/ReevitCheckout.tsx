@@ -47,6 +47,7 @@ const pspNames: Record<string, string> = {
 export function ReevitCheckout({
   // Config
   publicKey,
+  sessionSecret,
   amount,
   currency,
   email = '',
@@ -107,6 +108,7 @@ export function ReevitCheckout({
   } = useReevit({
     config: {
       publicKey,
+      sessionSecret,
       amount,
       currency,
       email,
@@ -171,6 +173,9 @@ export function ReevitCheckout({
       })
       .filter((provider) => provider.methods.length > 0);
   }, [paymentIntent, paymentMethods]);
+
+  const displayAmount = paymentIntent?.amount ?? amount ?? 0;
+  const displayCurrency = paymentIntent?.currency ?? currency ?? 'GHS';
 
   const activeProvider = providerOptions.find((provider) => provider.provider === selectedProvider) || providerOptions[0];
   const availableMethods = activeProvider?.methods && activeProvider.methods.length > 0
@@ -413,7 +418,7 @@ export function ReevitCheckout({
     </span>
   ) : !isControlled ? (
     <button className="reevit-trigger-btn" onClick={handleOpen}>
-      Pay {formatAmount(amount, currency)}
+      Pay {formatAmount(displayAmount, displayCurrency)}
     </button>
   ) : null;
 
@@ -446,7 +451,7 @@ export function ReevitCheckout({
             </div>
           </div>
           <h3 className="reevit-success__title">Payment Successful!</h3>
-          <p className="reevit-success__amount">{formatAmount(amount, currency)}</p>
+          <p className="reevit-success__amount">{formatAmount(displayAmount, displayCurrency)}</p>
           <p className="reevit-success__reference">Reference: {result.reference}</p>
           <p className="reevit-success__redirect">Redirecting in a moment...</p>
           <div
@@ -497,8 +502,8 @@ export function ReevitCheckout({
               publicKey={pspKey}
               email={email}
               phone={momoData?.phone || phone}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               reference={reference}
               accessCode={paymentIntent?.clientSecret}
               metadata={bridgeMetadata}
@@ -514,8 +519,8 @@ export function ReevitCheckout({
               paymentId={paymentIntent?.id || ''}
               publicKey={publicKey}
               merchantAccount={paymentIntent?.pspCredentials?.merchantAccount || ''}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               reference={paymentIntent?.providerRefId || paymentIntent?.reference || reference}
               email={email}
               phone={momoData?.phone || phone}
@@ -534,8 +539,8 @@ export function ReevitCheckout({
           return (
             <FlutterwaveBridge
               publicKey={pspKey}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               reference={paymentIntent?.reference || reference}
               email={email}
               phone={momoData?.phone || phone}
@@ -550,8 +555,8 @@ export function ReevitCheckout({
             <MonnifyBridge
               apiKey={pspKey}
               contractCode={(metadata?.contract_code as string) || pspKey}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               reference={paymentIntent?.reference || reference || `monnify_${Date.now()}`}
               customerName={(metadata?.customer_name as string) || email}
               customerEmail={email}
@@ -567,8 +572,8 @@ export function ReevitCheckout({
             <MPesaBridge
               apiEndpoint={`${apiBaseUrl || 'https://api.reevit.io'}/v1/payments/${paymentIntent?.id}/mpesa`}
               phoneNumber={momoData?.phone || phone || ''}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               reference={paymentIntent?.reference || reference || `mpesa_${Date.now()}`}
               description={`Payment ${paymentIntent?.reference || reference || ''}`}
               headers={{ 'x-reevit-public-key': publicKey || '' }}
@@ -581,8 +586,8 @@ export function ReevitCheckout({
             <StripeBridge
               publishableKey={pspKey}
               clientSecret={paymentIntent?.clientSecret || ''}
-              amount={paymentIntent?.amount ?? amount}
-              currency={paymentIntent?.currency ?? currency}
+              amount={displayAmount}
+              currency={displayCurrency}
               onSuccess={handlePSPSuccess}
               onError={handlePSPError}
               onCancel={handlePSPClose}
@@ -652,7 +657,7 @@ export function ReevitCheckout({
             onSelect={handleProviderSelect}
             disabled={isLoading}
             theme={resolvedTheme}
-            country={getCountryFromCurrency(currency)}
+            country={getCountryFromCurrency(displayCurrency)}
             selectedMethod={selectedMethod}
             onMethodSelect={handleMethodSelect}
             renderMethodContent={renderMethodContent}
@@ -671,7 +676,7 @@ export function ReevitCheckout({
           provider={psp}
           layout="list"
           showLabel={false}
-          country={getCountryFromCurrency(currency)}
+          country={getCountryFromCurrency(displayCurrency)}
           selectedTheme={resolvedTheme ? {
             backgroundColor: resolvedTheme.selectedBackgroundColor,
             textColor: resolvedTheme.selectedTextColor,
@@ -713,7 +718,7 @@ export function ReevitCheckout({
   };
 
   return (
-    <ReevitContext.Provider value={{ publicKey: publicKey || '', amount, currency }}>
+    <ReevitContext.Provider value={{ publicKey: publicKey || '', amount: displayAmount, currency: displayCurrency }}>
       {trigger}
 
       {isOpen && (
@@ -749,7 +754,7 @@ export function ReevitCheckout({
 
             <div className="reevit-modal__amount">
               <span className="reevit-modal__amount-label">Pay</span>
-              <span className="reevit-modal__amount-value">{formatAmount(amount, currency)}</span>
+              <span className="reevit-modal__amount-value">{formatAmount(displayAmount, displayCurrency)}</span>
             </div>
 
             <div className="reevit-modal__content">

@@ -14,8 +14,14 @@ import type {
   ReevitTheme,
   CheckoutProviderOption,
 } from '../types';
-import { generateReference } from '../utils';
-import { ReevitAPIClient, generateIdempotencyKey, type PaymentIntentResponse } from '../api';
+import {
+  ReevitAPIClient,
+  cacheIntentPromise,
+  cacheIntentResponse,
+  clearIntentCacheEntry,
+  resolveIntentIdentity,
+  type PaymentIntentResponse,
+} from '@reevit/core';
 
 // State shape
 interface ReevitState {
@@ -103,6 +109,14 @@ interface UseReevitOptions {
   apiBaseUrl?: string;
 }
 
+interface CheckoutSessionResponse {
+  id: string;
+  client_secret: string;
+  session_secret: string;
+  payment_intent: PaymentIntentResponse;
+  expires_at?: string;
+}
+
 /**
  * Maps PSP provider names from backend to PSP type used by bridges
  */
@@ -186,98 +200,42 @@ function normalizeBranding(branding?: Record<string, unknown>): ReevitTheme {
   return theme as ReevitTheme;
 }
 
-interface IntentCacheEntry {
-  promise?: Promise<PaymentIntentResponse>;
-  response?: PaymentIntentResponse;
-  expiresAt: number;
-  reference?: string;
-}
-
-const INTENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const intentCache = new Map<string, IntentCacheEntry>();
-
-function pruneIntentCache(now: number = Date.now()): void {
-  for (const [key, entry] of intentCache) {
-    if (entry.expiresAt <= now) {
-      intentCache.delete(key);
-    }
-  }
-}
-
-function getIntentCacheEntry(key: string): IntentCacheEntry | undefined {
-  const entry = intentCache.get(key);
-  if (!entry) {
-    return undefined;
-  }
-  if (entry.expiresAt <= Date.now()) {
-    intentCache.delete(key);
-    return undefined;
-  }
-  return entry;
-}
-
-function setIntentCacheEntry(key: string, update: Partial<IntentCacheEntry>): IntentCacheEntry {
-  const now = Date.now();
-  const existing = getIntentCacheEntry(key);
-  const next: IntentCacheEntry = {
-    ...existing,
-    ...update,
-    expiresAt: now + INTENT_CACHE_TTL_MS,
-  };
-  intentCache.set(key, next);
-  return next;
-}
-
-function clearIntentCacheEntry(key: string): void {
-  intentCache.delete(key);
-}
-
-function buildIdempotencyPayload(
-  config: ReevitCheckoutConfig,
-  method?: PaymentMethod,
-  options?: { preferredProvider?: string; allowedProviders?: string[] }
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    amount: config.amount,
-    currency: config.currency,
-    email: config.email || '',
-    phone: config.phone || '',
-    customerName: config.customerName || '',
-    paymentLinkCode: config.paymentLinkCode || '',
-    paymentMethods: config.paymentMethods || [],
-    metadata: config.metadata || {},
-    customFields: config.customFields || {},
-    method: method || '',
-    preferredProvider: options?.preferredProvider || '',
-    allowedProviders: options?.allowedProviders || [],
-    publicKey: config.publicKey || '',
-  };
-
-  if (config.reference) {
-    payload.reference = config.reference;
-  }
-
-  return payload;
-}
-
-function resolveIntentIdentity(
-  config: ReevitCheckoutConfig,
-  method?: PaymentMethod,
-  options?: { preferredProvider?: string; allowedProviders?: string[] }
-): { idempotencyKey: string; reference: string; cacheEntry?: IntentCacheEntry } {
-  pruneIntentCache();
-
-  const idempotencyKey =
-    config.idempotencyKey || generateIdempotencyKey(buildIdempotencyPayload(config, method, options));
-  const existing = getIntentCacheEntry(idempotencyKey);
-  const reference = config.reference || existing?.reference || generateReference();
-  const cacheEntry = setIntentCacheEntry(idempotencyKey, { reference });
-
-  return { idempotencyKey, reference, cacheEntry };
-}
-
 function isPaymentError(error: unknown): error is PaymentError {
   return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
+}
+
+async function getCheckoutSession(
+  apiClient: ReevitAPIClient,
+  sessionSecret: string,
+  apiBaseUrl?: string
+): Promise<{ data?: CheckoutSessionResponse; error?: PaymentError }> {
+  const clientWithSessions = apiClient as ReevitAPIClient & {
+    getCheckoutSession?: (secret: string) => Promise<{ data?: CheckoutSessionResponse; error?: PaymentError }>;
+  };
+
+  if (typeof clientWithSessions.getCheckoutSession === 'function') {
+    return clientWithSessions.getCheckoutSession(sessionSecret);
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/checkout/sessions/${encodeURIComponent(sessionSecret)}`
+  );
+  const responseData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      error: {
+        code: responseData?.code || 'checkout_session_error',
+        message: responseData?.message || 'Checkout session request failed',
+        recoverable: response.status >= 500,
+        details: {
+          httpStatus: response.status,
+          ...(responseData?.details || {}),
+        },
+      },
+    };
+  }
+
+  return { data: responseData as CheckoutSessionResponse };
 }
 
 /**
@@ -382,7 +340,7 @@ export function useReevit(options: UseReevitOptions) {
         }
 
         // Determine country from currency (can be enhanced with IP detection)
-        const country = detectCountryFromCurrency(config.currency);
+        const country = detectCountryFromCurrency(config.currency || 'GHS');
 
         // Select payment method to send to backend
         const defaultMethod =
@@ -391,7 +349,13 @@ export function useReevit(options: UseReevitOptions) {
             : undefined;
         const paymentMethod = method ?? defaultMethod;
 
-        const identity = resolveIntentIdentity(config, paymentMethod, options);
+        const identity = resolveIntentIdentity({
+          config: config as any,
+          method: paymentMethod as any,
+          preferredProvider: options?.preferredProvider,
+          allowedProviders: options?.allowedProviders,
+          publicKey: config.publicKey,
+        });
         const { idempotencyKey, reference, cacheEntry } = identity;
         intentKey = idempotencyKey;
 
@@ -407,6 +371,24 @@ export function useReevit(options: UseReevitOptions) {
         }
 
         const requestIntent = async (): Promise<PaymentIntentResponse> => {
+          if (config.sessionSecret) {
+            const result = await getCheckoutSession(apiClient, config.sessionSecret, apiBaseUrl);
+
+            if (result.error) {
+              throw result.error;
+            }
+
+            if (!result.data) {
+              throw {
+                code: 'INIT_FAILED',
+                message: 'No checkout session data received from API',
+                recoverable: true,
+              } as PaymentError;
+            }
+
+            return result.data.payment_intent;
+          }
+
           if (config.paymentLinkCode) {
             const response = await fetch(
               `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/pay/${config.paymentLinkCode}/pay`,
@@ -437,7 +419,7 @@ export function useReevit(options: UseReevitOptions) {
           }
 
           const result = await apiClient.createPaymentIntent(
-            { ...config, reference, idempotencyKey },
+            { ...config, reference, idempotencyKey } as any,
             paymentMethod,
             country,
             {
@@ -468,10 +450,10 @@ export function useReevit(options: UseReevitOptions) {
           let intentPromise = cacheEntry?.promise;
           if (!intentPromise) {
             intentPromise = requestIntent();
-            setIntentCacheEntry(idempotencyKey, { promise: intentPromise });
+            cacheIntentPromise(idempotencyKey, intentPromise);
           }
           data = await intentPromise;
-          setIntentCacheEntry(idempotencyKey, { response: data, promise: undefined });
+          cacheIntentResponse(idempotencyKey, data);
         }
 
         if (requestId !== initRequestIdRef.current) {
