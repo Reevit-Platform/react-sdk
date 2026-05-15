@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { LoadingState } from '../components/LoadingState';
 
 declare global {
   interface Window {
@@ -300,10 +301,11 @@ export function StripeBridge({
   return (
     <div className="reevit-stripe-bridge">
       {isLoading && (
-        <div className="reevit-stripe-loading">
-          <div className="reevit-spinner" />
-          <p>Loading secure payment form...</p>
-        </div>
+        <LoadingState
+          marker="PAYMENT GATEWAY"
+          title="Connecting to Stripe"
+          message="Loading the secure payment form"
+        />
       )}
 
       <div

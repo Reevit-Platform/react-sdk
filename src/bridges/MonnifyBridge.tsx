@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback, useState } from 'react';
+import { LoadingState } from '../components/LoadingState';
 
 declare global {
   interface Window {
@@ -173,14 +174,7 @@ export function MonnifyBridge({
   }, [autoOpen, openMonnify, onError]);
 
   if (isLoading) {
-    return (
-      <div className="reevit-monnify-bridge">
-        <div className="reevit-monnify-loading">
-          <div className="reevit-spinner" />
-          <p>Loading Monnify checkout...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Monnify" />;
   }
 
   if (!autoOpen && isReady) {

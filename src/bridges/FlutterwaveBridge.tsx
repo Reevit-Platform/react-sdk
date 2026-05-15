@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import type { PaymentResult, PaymentError } from '../types';
+import { LoadingState } from '../components/LoadingState';
 
 declare global {
   interface Window {
@@ -191,14 +192,7 @@ export function FlutterwaveBridge({
     }
   }, [autoStart, startPayment]);
 
-  return (
-    <div className="reevit-psp-bridge reevit-psp-bridge--flutterwave">
-      <div className="reevit-psp-bridge__loading">
-        <div className="reevit-spinner" />
-        <p>Connecting to Flutterwave...</p>
-      </div>
-    </div>
-  );
+  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Flutterwave" />;
 }
 
 export { loadFlutterwaveScript };

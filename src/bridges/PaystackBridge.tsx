@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import type { PaymentResult, PaymentError } from '../types';
+import { LoadingState } from '../components/LoadingState';
 
 declare global {
   interface Window {
@@ -182,14 +183,7 @@ export function PaystackBridge({
     }
   }, [autoStart, startPayment]);
 
-  return (
-    <div className="reevit-psp-bridge reevit-psp-bridge--paystack">
-      <div className="reevit-psp-bridge__loading">
-        <div className="reevit-spinner" />
-        <p>Connecting to Paystack...</p>
-      </div>
-    </div>
-  );
+  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Paystack" />;
 }
 
 // Export utility for manual initialization

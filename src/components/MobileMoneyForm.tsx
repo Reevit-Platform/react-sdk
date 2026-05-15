@@ -1,6 +1,8 @@
 /**
  * MobileMoneyForm Component
- * Form for collecting mobile money payment details
+ * Collects the mobile money phone number and network. The network is
+ * auto-selected from the number's prefix as the user types, and can also
+ * be picked manually.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,10 +17,10 @@ interface MobileMoneyFormProps {
   hideCancel?: boolean;
 }
 
-const networks: { id: MobileMoneyNetwork; name: string; color: string }[] = [
-  { id: 'mtn', name: 'MTN', color: '#FFCC00' },
-  { id: 'telecel', name: 'Telecel', color: '#E60000' },
-  { id: 'airteltigo', name: 'AirtelTigo', color: '#E4002B' },
+const networks: { id: MobileMoneyNetwork; name: string }[] = [
+  { id: 'mtn', name: 'MTN' },
+  { id: 'telecel', name: 'Telecel' },
+  { id: 'airteltigo', name: 'AirtelTigo' },
 ];
 
 export function MobileMoneyForm({
@@ -33,23 +35,21 @@ export function MobileMoneyForm({
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
-  // Auto-detect network from phone number
+  // Auto-select the network that matches the number's prefix as it's typed.
+  // The user can still override by tapping a network button.
   useEffect(() => {
-    if (phone.length >= 3) {
-      const detected = detectNetwork(phone);
-      if (detected) {
-        setNetwork(detected as MobileMoneyNetwork);
-      }
+    const detected = detectNetwork(phone) as MobileMoneyNetwork | null;
+    if (detected) {
+      setNetwork(detected);
     }
   }, [phone]);
 
-  // Validate on change
   useEffect(() => {
     if (touched && phone) {
       if (!validatePhone(phone)) {
-        setError('Please enter a valid Ghana phone number');
+        setError('Enter a valid mobile money number');
       } else if (network && !validatePhone(phone, network)) {
-        setError(`This number doesn't match the selected network`);
+        setError("This number doesn't match the selected network");
       } else {
         setError(null);
       }
@@ -66,13 +66,18 @@ export function MobileMoneyForm({
       e.preventDefault();
       setTouched(true);
 
-      if (!phone || !network) {
-        setError('Please enter your phone number and select a network');
+      if (!phone || !validatePhone(phone)) {
+        setError('Enter a valid mobile money number');
+        return;
+      }
+
+      if (!network) {
+        setError('Select your mobile money network');
         return;
       }
 
       if (!validatePhone(phone, network)) {
-        setError('Invalid phone number for selected network');
+        setError("This number doesn't match the selected network");
         return;
       }
 
@@ -81,18 +86,18 @@ export function MobileMoneyForm({
     [phone, network, onSubmit]
   );
 
-  const isValid = phone && network && validatePhone(phone, network);
+  const isValid = !!phone && !!network && validatePhone(phone, network);
 
   return (
-    <form className="reevit-momo-form" onSubmit={handleSubmit}>
-      <div className="reevit-momo-form__field">
-        <label htmlFor="reevit-phone" className="reevit-momo-form__label">
-          Phone Number
+    <form className="reevit-brut__momo" onSubmit={handleSubmit}>
+      <div className="reevit-brut__field">
+        <label htmlFor="reevit-phone" className="reevit-brut__field-label">
+          Phone number
         </label>
         <input
           id="reevit-phone"
           type="tel"
-          className={cn('reevit-momo-form__input', !!error && 'reevit-momo-form__input--error')}
+          className={cn('reevit-brut__input', !!error && 'reevit-brut__input--error')}
           placeholder="024 XXX XXXX"
           value={phone}
           onChange={handlePhoneChange}
@@ -101,23 +106,20 @@ export function MobileMoneyForm({
           autoComplete="tel"
         />
         {phone && !error && (
-          <div className="reevit-momo-form__formatted">{formatPhone(phone)}</div>
+          <div className="reevit-brut__input-note">{formatPhone(phone)}</div>
         )}
-        {error && <div className="reevit-momo-form__error">{error}</div>}
+        {error && <div className="reevit-brut__input-error">{error}</div>}
       </div>
 
-      <div className="reevit-momo-form__field">
-        <label className="reevit-momo-form__label">Select Network</label>
-        <div className="reevit-momo-form__networks">
+      <div className="reevit-brut__field">
+        <span className="reevit-brut__field-label">Select network</span>
+        <div className="reevit-brut__networks">
           {networks.map((n) => (
             <button
               key={n.id}
               type="button"
-              className={cn(
-                'reevit-network-btn',
-                network === n.id && 'reevit-network-btn--selected'
-              )}
-              style={{ '--network-color': n.color } as React.CSSProperties}
+              className="reevit-brut__network"
+              data-selected={network === n.id}
               onClick={() => setNetwork(n.id)}
               disabled={isLoading}
             >
@@ -127,31 +129,34 @@ export function MobileMoneyForm({
         </div>
       </div>
 
-      <div className="reevit-momo-form__actions">
+      <div className="reevit-brut__momo-actions">
         {!hideCancel && (
           <button
             type="button"
-            className="reevit-btn reevit-btn--secondary"
+            className="reevit-brut__cta reevit-brut__cta--ghost"
             onClick={onCancel}
             disabled={isLoading}
           >
-            Back
+            <span>BACK</span>
           </button>
         )}
         <button
           type="submit"
-          className="reevit-btn reevit-btn--primary"
+          className="reevit-brut__cta"
           disabled={!isValid || isLoading}
         >
           {isLoading ? (
-            <span className="reevit-spinner" />
+            <span>PLEASE WAIT</span>
           ) : (
-            'Continue'
+            <>
+              <span>CONTINUE</span>
+              <span>&rarr;</span>
+            </>
           )}
         </button>
       </div>
 
-      <p className="reevit-momo-form__hint">
+      <p className="reevit-brut__momo-hint">
         You will receive a USSD prompt on your phone to authorize the payment.
       </p>
     </form>
