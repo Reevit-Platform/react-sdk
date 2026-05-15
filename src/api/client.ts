@@ -34,6 +34,7 @@ export interface PaymentIntentResponse {
   provider_ref_id?: string;
   status: string;
   client_secret: string;
+  session_secret?: string;
   psp_public_key?: string;
   psp_credentials?: {
     merchantAccount?: string | number;
@@ -53,6 +54,14 @@ export interface PaymentIntentResponse {
     countries?: string[];
   }>;
   branding?: Record<string, unknown>;
+}
+
+export interface CheckoutSessionResponse {
+  id: string;
+  client_secret: string;
+  session_secret: string;
+  payment_intent: PaymentIntentResponse;
+  expires_at?: string;
 }
 
 /**
@@ -121,6 +130,7 @@ export interface ReevitAPIClientConfig {
 // Default API base URLs
 const API_BASE_URL_PRODUCTION = 'https://api.reevit.io';
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
+let hasWarnedAboutLiveBrowserIntents = false;
 
 /**
  * Determines if a public key is for sandbox mode
@@ -203,7 +213,7 @@ export class ReevitAPIClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.8.1',
+      'X-Reevit-Client-Version': '0.9.0',
     };
     if (this.publicKey) {
       headers['X-Reevit-Key'] = this.publicKey;
@@ -276,6 +286,27 @@ export class ReevitAPIClient {
     country: string = 'GH',
     options?: { preferredProviders?: string[]; allowedProviders?: string[] }
   ): Promise<{ data?: PaymentIntentResponse; error?: PaymentError }> {
+    if (
+      this.publicKey.startsWith('pfk_live_') &&
+      !hasWarnedAboutLiveBrowserIntents &&
+      typeof console !== 'undefined'
+    ) {
+      hasWarnedAboutLiveBrowserIntents = true;
+      console.warn(
+        'Creating live payment intents from the browser is deprecated. Create a checkout session on your server and pass sessionSecret to the browser SDK instead.'
+      );
+    }
+
+    if (typeof config.amount !== 'number' || !config.currency) {
+      return {
+        error: {
+          code: 'invalid_checkout_config',
+          message: 'amount and currency are required when creating a payment intent in the browser.',
+          recoverable: false,
+        },
+      };
+    }
+
     // Build metadata with customer_email for PSP providers that require it
     const metadata: Record<string, unknown> = { ...config.metadata };
     if (config.email) {
@@ -325,6 +356,16 @@ export class ReevitAPIClient {
    */
   async getPaymentIntent(paymentId: string): Promise<{ data?: PaymentDetailResponse; error?: PaymentError }> {
     return this.request<PaymentDetailResponse>('GET', `/v1/payments/${paymentId}`);
+  }
+
+  /**
+   * Retrieves a server-created checkout session using its public session secret.
+   */
+  async getCheckoutSession(sessionSecret: string): Promise<{ data?: CheckoutSessionResponse; error?: PaymentError }> {
+    return this.request<CheckoutSessionResponse>(
+      'GET',
+      `/v1/checkout/sessions/${encodeURIComponent(sessionSecret)}`
+    );
   }
 
   /**

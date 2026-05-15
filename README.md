@@ -38,6 +38,18 @@ function App() {
 }
 ```
 
+## Server-created Checkout Sessions
+
+For production checkouts, create the payment session on your backend with a server SDK, then pass the returned `session_secret` to React. The browser never creates the payment intent directly.
+
+```tsx
+<ReevitCheckout
+  sessionSecret={checkoutSession.session_secret}
+  onSuccess={(result) => console.log('Payment success!', result)}
+  onError={(error) => console.error('Payment failed:', error.message)}
+/>
+```
+
 ## Idempotency
 
 Provide an `idempotencyKey` tied to your order/cart to avoid duplicate intent creation and enable safe retries.
@@ -295,7 +307,7 @@ function MpesaPayment() {
 
 ## Release Notes
 
-### v0.7.0
+### v0.9.0
 
 - Redesigned checkout UI with premium visual polish
 - New typography system: Grato Classic for body, ABC Repro Mono for amounts

@@ -15,10 +15,12 @@ export type PaymentSource = 'payment_link' | 'api' | 'subscription';
 export interface ReevitCheckoutConfig {
   /** Your Reevit public key (required for API-created intents; omit for payment links) */
   publicKey?: string;
-  /** Amount in the smallest currency unit (e.g., pesewas for GHS) */
-  amount: number;
-  /** Currency code (e.g., 'GHS', 'NGN', 'USD') */
-  currency: string;
+  /** Server-created checkout session secret. Prefer this for browser checkouts. */
+  sessionSecret?: string;
+  /** Amount in the smallest currency unit (e.g., pesewas for GHS). Required unless sessionSecret or initialPaymentIntent is provided. */
+  amount?: number;
+  /** Currency code (e.g., 'GHS', 'NGN', 'USD'). Required unless sessionSecret or initialPaymentIntent is provided. */
+  currency?: string;
   /** Customer email address */
   email?: string;
   /** Customer phone number (required for mobile money) */
