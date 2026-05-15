@@ -1,6 +1,6 @@
 {
   "name": "@reevit/react",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Reevit React SDK - Unified Payment Widget",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "preview": "cd preview && npx vite",
+    "preview": "vite --config preview/vite.config.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
@@ -33,10 +33,12 @@
     "@types/node": "^25.0.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vite": "^5.4.10"
   },
   "keywords": [
     "reevit",

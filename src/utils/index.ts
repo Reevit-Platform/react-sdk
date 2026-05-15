@@ -87,22 +87,37 @@ export function formatPhone(phone: string): string {
 }
 
 /**
- * Detect mobile money network from phone number
+ * Detect mobile money network from a Ghana phone number.
+ * Accepts local (0XXXXXXXXX) and international (233… / +233…) formats,
+ * then matches the two-digit operator code.
  */
 export function detectNetwork(phone: string): string | null {
-  const cleaned = phone.replace(/[\s-]/g, '');
+  let cleaned = phone.replace(/[\s-]/g, '');
 
-  const prefixes: Record<string, string[]> = {
-    mtn: ['024', '054', '055', '059', '23324', '23354', '23355', '23359'],
-    telecel: ['020', '050', '23320', '23350'],
-    airteltigo: ['026', '027', '056', '057', '23326', '23327', '23356', '23357'],
+  // Normalise any supported format to local 0XXXXXXXXX form.
+  if (cleaned.startsWith('+233')) {
+    cleaned = '0' + cleaned.slice(4);
+  } else if (cleaned.startsWith('233')) {
+    cleaned = '0' + cleaned.slice(3);
+  }
+
+  if (!cleaned.startsWith('0') || cleaned.length < 3) {
+    return null;
+  }
+
+  // The operator code is the two digits after the leading 0.
+  const code = cleaned.slice(1, 3);
+
+  // Operator codes kept in sync with @reevit/core's detectNetwork.
+  const operatorCodes: Record<string, string[]> = {
+    mtn: ['24', '25', '53', '54', '55', '59'],
+    telecel: ['20', '50'],
+    airteltigo: ['26', '27', '56', '57'],
   };
 
-  for (const [network, networkPrefixes] of Object.entries(prefixes)) {
-    for (const prefix of networkPrefixes) {
-      if (cleaned.startsWith(prefix) || cleaned.startsWith('0' + prefix.slice(3))) {
-        return network;
-      }
+  for (const [network, codes] of Object.entries(operatorCodes)) {
+    if (codes.includes(code)) {
+      return network;
     }
   }
 

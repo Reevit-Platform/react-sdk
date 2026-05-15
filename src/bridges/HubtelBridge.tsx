@@ -11,6 +11,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import CheckoutSdk from '@hubteljs/checkout';
 import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
+import { LoadingState } from '../components/LoadingState';
 
 const DEFAULT_REEVIT_API_BASE_URL = 'https://api.reevit.io';
 
@@ -260,14 +261,7 @@ export function HubtelBridge({
     }
   }, [autoStart, startPayment, isLoading, authValue]);
 
-  return (
-    <div className="reevit-psp-bridge reevit-psp-bridge--hubtel">
-      <div className="reevit-psp-bridge__loading">
-        <div className="reevit-spinner" />
-        <p>Connecting to Hubtel...</p>
-      </div>
-    </div>
-  );
+  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Hubtel" />;
 }
 
 /**
