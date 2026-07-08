@@ -1,3 +1,24 @@
+# @reevit/react v0.10.1
+
+**Release Date:** July 7, 2026
+
+## 🐛 Bug Fixes
+
+- **Paystack card/mobile-money payments never confirmed.** The Paystack bridge
+  loaded Inline v2 but drove it through the v1-compat `PaystackPop.setup()`
+  API with a snake_case `access_code`. Inline v2 only recognises camelCase
+  `accessCode` and silently drops unknown keys, so the popup created a **new,
+  unrelated Paystack transaction** (under the caller's `reference`) instead of
+  resuming the transaction the Reevit backend initialized. The customer's
+  charge succeeded at Paystack, but Reevit kept verifying its own untouched
+  reference — the payment stayed `pending`/`requires_action` forever. The
+  bridge now uses the v2 instance API: `resumeTransaction(accessCode,
+  callbacks)` when the intent carries an access code (the normal Reevit flow),
+  and `newTransaction({...})` with camelCase keys otherwise. Popup errors are
+  now surfaced through `onError` instead of being ignored.
+
+---
+
 # @reevit/react (Unreleased)
 
 **Release Date:** February 4, 2026
