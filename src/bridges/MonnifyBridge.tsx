@@ -65,6 +65,16 @@ const MONNIFY_SCRIPT_URL = 'https://sdk.monnify.com/plugin/monnify.js';
 let monnifyScriptPromise: Promise<void> | null = null;
 
 export function loadMonnifyScript(): Promise<void> {
+  // The bridge component only calls this from an effect (never during SSR), but
+  // it is also exported for manual initialization, so guard against non-browser
+  // environments with a clear error instead of a cryptic ReferenceError. Do this
+  // before the cached promise so the server never populates it.
+  if (typeof document === 'undefined') {
+    return Promise.reject(
+      new Error('Reevit: Monnify SDK can only be loaded in a browser environment'),
+    );
+  }
+
   if (monnifyScriptPromise) return monnifyScriptPromise;
 
   if (document.getElementById('monnify-sdk-script')) {

@@ -62,6 +62,16 @@ const STRIPE_SCRIPT_URL = 'https://js.stripe.com/v3/';
 let stripeScriptPromise: Promise<void> | null = null;
 
 export function loadStripeScript(): Promise<void> {
+  // The bridge component only calls this from an effect (never during SSR), but
+  // it is also exported for manual initialization, so guard against non-browser
+  // environments with a clear error instead of a cryptic ReferenceError. Do this
+  // before the cached promise so the server never populates it.
+  if (typeof document === 'undefined') {
+    return Promise.reject(
+      new Error('Reevit: Stripe.js can only be loaded in a browser environment'),
+    );
+  }
+
   if (stripeScriptPromise) return stripeScriptPromise;
 
   if (document.getElementById('stripe-js-script')) {
