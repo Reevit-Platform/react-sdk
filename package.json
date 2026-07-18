@@ -53,11 +53,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Reevit-Platform/react.git"
+    "url": "https://github.com/Reevit-Platform/react-sdk.git"
   },
-  "homepage": "https://github.com/Reevit-Platform/react#readme",
+  "homepage": "https://github.com/Reevit-Platform/react-sdk#readme",
   "bugs": {
-    "url": "https://github.com/Reevit-Platform/react/issues"
+    "url": "https://github.com/Reevit-Platform/react-sdk/issues"
   },
   "files": [
     "dist",
