@@ -8,12 +8,35 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import CheckoutSdk from '@hubteljs/checkout';
 import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
 import { LoadingState } from '../components/LoadingState';
 
 const DEFAULT_REEVIT_API_BASE_URL = 'https://api.reevit.io';
+
+/**
+ * Lazily loads the Hubtel checkout SDK.
+ *
+ * `@hubteljs/checkout` ships an ESM dist whose internal `import './CheckoutSdk'`
+ * omits the required `.js` extension, which Node's native ESM resolver rejects.
+ * A top-level `import` of it would therefore break `require('@reevit/react')` and
+ * native-ESM imports under Node (test setups, edge runtimes), even though bundlers
+ * like webpack tolerate the malformed specifier. We defer the import to the moment
+ * the Hubtel payment path actually runs — mirroring how the other PSP bridges load
+ * their scripts at runtime — so merely importing this package never pulls in the
+ * broken dist at module-eval time. The promise is memoized so the dynamic import
+ * resolves once and is reused across payments.
+ */
+type CheckoutSdkCtor = (typeof import('@hubteljs/checkout'))['default'];
+
+let checkoutSdkPromise: Promise<CheckoutSdkCtor> | null = null;
+
+function loadHubtelCheckout(): Promise<CheckoutSdkCtor> {
+  if (!checkoutSdkPromise) {
+    checkoutSdkPromise = import('@hubteljs/checkout').then((mod) => mod.default);
+  }
+  return checkoutSdkPromise;
+}
 
 function getHubtelCallbackURL(apiBaseUrl?: string): string {
   return `${apiBaseUrl || DEFAULT_REEVIT_API_BASE_URL}/v1/webhooks/incoming/hubtel`;
@@ -151,6 +174,7 @@ export function HubtelBridge({
     }
 
     try {
+      const CheckoutSdk = await loadHubtelCheckout();
       const checkout = new CheckoutSdk();
 
       const methodPreference =
@@ -282,8 +306,6 @@ export function openHubtelPopup(config: {
   onError?: (data: Record<string, unknown>) => void;
   onClose?: () => void;
 }): void {
-  const checkout = new CheckoutSdk();
-
   const methodPreference =
     config.preferredMethod === 'mobile_money' ? 'momo' : config.preferredMethod === 'card' ? 'card' : undefined;
 
@@ -305,20 +327,34 @@ export function openHubtelPopup(config: {
     ...(methodPreference ? { paymentMethod: methodPreference } : {}),
   };
 
-  checkout.openModal({
-    purchaseInfo,
-    config: checkoutConfig,
-    callBacks: {
-      onPaymentSuccess: (data: any) => {
-        config.onSuccess?.(parseHubtelCallbackPayload(data));
-        checkout.closePopUp();
-      },
-      onPaymentFailure: (data: any) => {
-        config.onError?.(parseHubtelCallbackPayload(data));
-      },
-      onClose: () => {
-        config.onClose?.();
-      },
-    },
-  });
+  // Load the Hubtel SDK lazily so importing this module never pulls in the
+  // package's broken ESM dist (see loadHubtelCheckout above). Fire-and-forget to
+  // preserve the synchronous `void` signature; a failed load routes to onError.
+  void loadHubtelCheckout()
+    .then((CheckoutSdk) => {
+      const checkout = new CheckoutSdk();
+      checkout.openModal({
+        purchaseInfo,
+        config: checkoutConfig,
+        callBacks: {
+          onPaymentSuccess: (data: any) => {
+            config.onSuccess?.(parseHubtelCallbackPayload(data));
+            checkout.closePopUp();
+          },
+          onPaymentFailure: (data: any) => {
+            config.onError?.(parseHubtelCallbackPayload(data));
+          },
+          onClose: () => {
+            config.onClose?.();
+          },
+        },
+      });
+    })
+    .catch((err) => {
+      config.onError?.({
+        code: 'PSP_ERROR',
+        message: 'Failed to load Hubtel checkout',
+        originalError: err,
+      });
+    });
 }
