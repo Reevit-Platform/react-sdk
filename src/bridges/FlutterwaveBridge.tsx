@@ -66,6 +66,15 @@ interface FlutterwaveBridgeProps {
 
 // Load Flutterwave script
 function loadFlutterwaveScript(): Promise<void> {
+  // The bridge component only calls this from an effect (never during SSR), but
+  // it is also exported for manual initialization, so guard against non-browser
+  // environments with a clear error instead of a cryptic ReferenceError.
+  if (typeof document === 'undefined') {
+    return Promise.reject(
+      new Error('Reevit: Flutterwave script can only be loaded in a browser environment'),
+    );
+  }
+
   return new Promise((resolve, reject) => {
     if (window.FlutterwaveCheckout) {
       resolve();
