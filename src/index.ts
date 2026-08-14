@@ -42,6 +42,8 @@ export {
   type ReevitAPIClientConfig,
   type PaymentIntentResponse,
   type PaymentDetailResponse,
+  type CheckoutSessionSelectionRequest,
+  type CheckoutSessionSelectionResponse,
 } from './api';
 
 // Types

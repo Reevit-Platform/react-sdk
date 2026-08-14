@@ -1,3 +1,19 @@
+# @reevit/react v0.10.4
+
+**Release Date:** August 14, 2026
+
+## 🐛 Bug Fixes
+
+- Finalize server-created checkout sessions with the shopper's selected payment
+  method and provider before mounting a PSP bridge.
+- Resume Paystack with the method-specific access code returned by Reevit,
+  keeping the popup, verification, and webhooks attached to the same intent.
+- Deduplicate repeated Continue clicks by checkout session, method, and provider,
+  and preserve the selected method while the refreshed intent loads.
+- Reject unsupported provider/method combinations instead of silently rerouting.
+
+---
+
 # @reevit/react v0.10.3
 
 **Release Date:** August 14, 2026

@@ -45,10 +45,16 @@ For production checkouts, create the payment session on your backend with a serv
 ```tsx
 <ReevitCheckout
   sessionSecret={checkoutSession.session_secret}
+  paymentMethods={['card', 'mobile_money']}
   onSuccess={(result) => console.log('Payment success!', result)}
   onError={(error) => console.error('Payment failed:', error.message)}
 />
 ```
+
+When the shopper continues, the SDK finalizes the session with the last selected
+method and provider, then opens the PSP using the returned method-specific
+intent. Repeated clicks reuse that same intent. Keep the session secret in the
+browser, but never expose your private Reevit API key.
 
 ## Idempotency
 

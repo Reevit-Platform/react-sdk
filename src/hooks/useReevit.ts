@@ -121,6 +121,10 @@ interface CheckoutSessionResponse {
   expires_at?: string;
 }
 
+interface CheckoutSessionSelectionResponse {
+  payment_intent: PaymentIntentResponse;
+}
+
 /**
  * Maps PSP provider names from backend to PSP type used by bridges
  */
@@ -242,6 +246,55 @@ async function getCheckoutSession(
   return { data: responseData as CheckoutSessionResponse };
 }
 
+async function selectCheckoutSession(
+  sessionSecret: string,
+  method: PaymentMethod,
+  provider: string,
+  idempotencyKey: string,
+  apiBaseUrl?: string,
+): Promise<{ data?: CheckoutSessionSelectionResponse; error?: PaymentError }> {
+  const response = await fetch(
+    `${apiBaseUrl || DEFAULT_PUBLIC_API_BASE_URL}/v1/checkout/sessions/${encodeURIComponent(sessionSecret)}/select`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
+        'X-Reevit-Client': '@reevit/react',
+        'X-Reevit-Client-Version': '0.10.4',
+      },
+      body: JSON.stringify({ method, provider }),
+    },
+  );
+  const responseData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      error: {
+        code: responseData?.code || 'checkout_session_selection_error',
+        message: responseData?.message || 'Checkout session selection failed',
+        recoverable: response.status >= 500,
+        details: {
+          httpStatus: response.status,
+          ...(responseData?.details || {}),
+        },
+      },
+    };
+  }
+
+  return { data: responseData as CheckoutSessionSelectionResponse };
+}
+
+function checkoutSelectionIdentity(sessionSecret: string, method: PaymentMethod, provider: string): string {
+  const value = `${sessionSecret}:${method}:${provider}`;
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) + hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+
+  return `reevit_checkout_selection_${(hash >>> 0).toString(16)}`;
+}
+
 /**
  * Maps backend payment intent response to SDK PaymentIntent type
  */
@@ -294,7 +347,7 @@ export function useReevit(options: UseReevitOptions) {
   }, [state]);
 
   // Track the current intent identity to allow re-init when it changes
-  const currentIntentKeyRef = useRef<string | null>(
+  const resolvedIntentKeyRef = useRef<string | null>(
     config.initialPaymentIntent ? `initial:${config.initialPaymentIntent.id}` : null
   );
   const initRequestIdRef = useRef(0);
@@ -304,10 +357,10 @@ export function useReevit(options: UseReevitOptions) {
     if (config.initialPaymentIntent) {
       if (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id) {
         dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
-        currentIntentKeyRef.current = `initial:${config.initialPaymentIntent.id}`;
+        resolvedIntentKeyRef.current = `initial:${config.initialPaymentIntent.id}`;
       }
-    } else if (currentIntentKeyRef.current?.startsWith('initial:')) {
-      currentIntentKeyRef.current = null;
+    } else if (resolvedIntentKeyRef.current?.startsWith('initial:')) {
+      resolvedIntentKeyRef.current = null;
     }
   }, [config.initialPaymentIntent, state.paymentIntent?.id]);
 
@@ -358,8 +411,17 @@ export function useReevit(options: UseReevitOptions) {
           options?.preferredProvider,
           ...(options?.allowedProviders ? [...options.allowedProviders].sort() : []),
         ].filter(Boolean).join(':');
-        const identityConfig = config.idempotencyKey && selectionScope
-          ? { ...config, idempotencyKey: `${config.idempotencyKey}:${selectionScope}` }
+        const selectionProvider = options?.preferredProvider || options?.allowedProviders?.[0];
+        const selectionIdempotencyKey = config.sessionSecret && paymentMethod && selectionProvider
+          ? checkoutSelectionIdentity(config.sessionSecret, paymentMethod, selectionProvider)
+          : undefined;
+        const identityConfig = selectionScope
+          ? {
+              ...config,
+              idempotencyKey: config.idempotencyKey
+                ? `${config.idempotencyKey}:${selectionScope}`
+                : selectionIdempotencyKey,
+            }
           : config;
 
         const identity = resolveIntentIdentity({
@@ -372,11 +434,10 @@ export function useReevit(options: UseReevitOptions) {
         const { idempotencyKey, reference, cacheEntry } = identity;
         intentKey = idempotencyKey;
 
-        if (currentIntentKeyRef.current === idempotencyKey && stateRef.current.paymentIntent) {
+        if (resolvedIntentKeyRef.current === idempotencyKey && stateRef.current.paymentIntent) {
           return stateRef.current.paymentIntent;
         }
 
-        currentIntentKeyRef.current = idempotencyKey;
         requestId = ++initRequestIdRef.current;
 
         if (stateRef.current.status !== 'loading') {
@@ -385,7 +446,15 @@ export function useReevit(options: UseReevitOptions) {
 
         const requestIntent = async (): Promise<PaymentIntentResponse> => {
           if (config.sessionSecret) {
-            const result = await getCheckoutSession(apiClient, config.sessionSecret, apiBaseUrl);
+            const result = paymentMethod && selectionProvider
+              ? await selectCheckoutSession(
+                  config.sessionSecret,
+                  paymentMethod,
+                  selectionProvider,
+                  idempotencyKey,
+                  apiBaseUrl,
+                )
+              : await getCheckoutSession(apiClient, config.sessionSecret, apiBaseUrl);
 
             if (result.error) {
               throw result.error;
@@ -476,6 +545,7 @@ export function useReevit(options: UseReevitOptions) {
         // Map response to PaymentIntent
         const paymentIntent = mapToPaymentIntent(data, { ...config, reference, idempotencyKey });
 
+        resolvedIntentKeyRef.current = idempotencyKey;
         dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
         return paymentIntent;
       } catch (err) {
@@ -605,7 +675,7 @@ export function useReevit(options: UseReevitOptions) {
       }
     }
 
-    currentIntentKeyRef.current = null;
+    resolvedIntentKeyRef.current = null;
     initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
   }, [state.paymentIntent, state.status]);
