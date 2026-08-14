@@ -305,9 +305,9 @@ export function ReevitCheckout({
       setShowPSPBridge(false);
       setMomoData(null);
 
-      // Select the appropriate method for this provider
-      // No need to re-initialize - we already have the payment intent with available_psps
-      // Re-initializing would create a duplicate payment
+      // Select the appropriate method for this provider. Intent refresh is
+      // deferred until Continue so it includes the shopper's final method and
+      // provider choice and does not run for every selector click.
       if (methodForInit) {
         selectMethod(methodForInit);
       }
@@ -316,8 +316,22 @@ export function ReevitCheckout({
   );
 
   // Handle continue after method selection
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
     if (!selectedMethod) return;
+
+    // Paystack's resumeTransaction() can only reopen the transaction represented
+    // by its access code; it cannot change that transaction's payment channels.
+    // The first intent is created before the shopper picks a method so that the
+    // widget can display provider options. Create/reuse a method-specific intent
+    // before opening the provider, otherwise Paystack defaults that first intent
+    // to card even when the shopper subsequently selects Mobile Money.
+    if (!initialPaymentIntent && !sessionSecret) {
+      const preferredProvider = providerOptions.length > 1
+        ? selectedProvider || undefined
+        : undefined;
+      const intent = await initialize(selectedMethod, { preferredProvider });
+      if (!intent) return;
+    }
 
     if (selectedMethod === 'card') {
       // For card payments, show PSP bridge (Paystack popup)
@@ -333,7 +347,17 @@ export function ReevitCheckout({
       // bank_transfer and any other method route through the PSP bridge
       setShowPSPBridge(true);
     }
-  }, [selectedMethod, selectedProvider, paymentIntent, momoData, phone]);
+  }, [
+    selectedMethod,
+    initialPaymentIntent,
+    sessionSecret,
+    providerOptions.length,
+    selectedProvider,
+    initialize,
+    paymentIntent,
+    momoData,
+    phone,
+  ]);
 
   // Handle mobile money form submission
   const handleMomoSubmit = useCallback(
