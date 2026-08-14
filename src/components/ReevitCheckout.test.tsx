@@ -5,6 +5,17 @@ import { ReevitCheckout } from './ReevitCheckout';
 
 const SESSION_SECRET = 'cs_checkout_session_secret';
 
+function installPaystackBridge() {
+  const newTransaction = vi.fn();
+  const resumeTransaction = vi.fn();
+  window.PaystackPop = class {
+    newTransaction = newTransaction;
+    resumeTransaction = resumeTransaction;
+  } as any;
+
+  return { newTransaction, resumeTransaction };
+}
+
 function sessionResponse(accessCode: string, method = 'card') {
   return {
     id: 'checkout_session_payment',
@@ -39,11 +50,7 @@ describe('ReevitCheckout server-created sessions', () => {
   });
 
   it('opens Paystack with the shopper-selected Mobile Money intent and deduplicates repeated Continue clicks', async () => {
-    const resumeTransaction = vi.fn();
-    window.PaystackPop = class {
-      newTransaction = vi.fn();
-      resumeTransaction = resumeTransaction;
-    } as any;
+    const { newTransaction, resumeTransaction } = installPaystackBridge();
 
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (!init?.method || init.method === 'GET') {
@@ -88,14 +95,11 @@ describe('ReevitCheckout server-created sessions', () => {
       provider: 'paystack',
     });
     expect(resumeTransaction).not.toHaveBeenCalledWith('card-only-access-code', expect.anything());
+    expect(newTransaction).not.toHaveBeenCalled();
   });
 
   it('requests and opens a card-specific intent', async () => {
-    const resumeTransaction = vi.fn();
-    window.PaystackPop = class {
-      newTransaction = vi.fn();
-      resumeTransaction = resumeTransaction;
-    } as any;
+    const { resumeTransaction } = installPaystackBridge();
 
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (!init?.method || init.method === 'GET') {
@@ -132,11 +136,7 @@ describe('ReevitCheckout server-created sessions', () => {
   });
 
   it('honors an explicit provider selection when several providers are available', async () => {
-    const resumeTransaction = vi.fn();
-    window.PaystackPop = class {
-      newTransaction = vi.fn();
-      resumeTransaction = resumeTransaction;
-    } as any;
+    const { resumeTransaction } = installPaystackBridge();
 
     const initial = sessionResponse('initial-access-code');
     initial.payment_intent.available_psps = [
@@ -180,11 +180,7 @@ describe('ReevitCheckout server-created sessions', () => {
   });
 
   it('keeps the existing public-key intent refresh flow working', async () => {
-    const resumeTransaction = vi.fn();
-    window.PaystackPop = class {
-      newTransaction = vi.fn();
-      resumeTransaction = resumeTransaction;
-    } as any;
+    const { resumeTransaction } = installPaystackBridge();
 
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : {};

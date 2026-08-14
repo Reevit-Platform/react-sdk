@@ -347,9 +347,6 @@ export function useReevit(options: UseReevitOptions) {
   }, [state]);
 
   // Track the current intent identity to allow re-init when it changes
-  const currentIntentKeyRef = useRef<string | null>(
-    config.initialPaymentIntent ? `initial:${config.initialPaymentIntent.id}` : null
-  );
   const resolvedIntentKeyRef = useRef<string | null>(
     config.initialPaymentIntent ? `initial:${config.initialPaymentIntent.id}` : null
   );
@@ -360,11 +357,9 @@ export function useReevit(options: UseReevitOptions) {
     if (config.initialPaymentIntent) {
       if (!state.paymentIntent || state.paymentIntent.id !== config.initialPaymentIntent.id) {
         dispatch({ type: 'INIT_SUCCESS', payload: config.initialPaymentIntent });
-        currentIntentKeyRef.current = `initial:${config.initialPaymentIntent.id}`;
         resolvedIntentKeyRef.current = `initial:${config.initialPaymentIntent.id}`;
       }
-    } else if (currentIntentKeyRef.current?.startsWith('initial:')) {
-      currentIntentKeyRef.current = null;
+    } else if (resolvedIntentKeyRef.current?.startsWith('initial:')) {
       resolvedIntentKeyRef.current = null;
     }
   }, [config.initialPaymentIntent, state.paymentIntent?.id]);
@@ -443,7 +438,6 @@ export function useReevit(options: UseReevitOptions) {
           return stateRef.current.paymentIntent;
         }
 
-        currentIntentKeyRef.current = idempotencyKey;
         requestId = ++initRequestIdRef.current;
 
         if (stateRef.current.status !== 'loading') {
@@ -681,7 +675,6 @@ export function useReevit(options: UseReevitOptions) {
       }
     }
 
-    currentIntentKeyRef.current = null;
     resolvedIntentKeyRef.current = null;
     initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
