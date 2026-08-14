@@ -353,8 +353,17 @@ export function useReevit(options: UseReevitOptions) {
             : undefined;
         const paymentMethod = method ?? defaultMethod;
 
+        const selectionScope = [
+          paymentMethod,
+          options?.preferredProvider,
+          ...(options?.allowedProviders ? [...options.allowedProviders].sort() : []),
+        ].filter(Boolean).join(':');
+        const identityConfig = config.idempotencyKey && selectionScope
+          ? { ...config, idempotencyKey: `${config.idempotencyKey}:${selectionScope}` }
+          : config;
+
         const identity = resolveIntentIdentity({
-          config: config as any,
+          config: identityConfig as any,
           method: paymentMethod as any,
           preferredProvider: options?.preferredProvider,
           allowedProviders: options?.allowedProviders,
@@ -423,7 +432,7 @@ export function useReevit(options: UseReevitOptions) {
           }
 
           const result = await apiClient.createPaymentIntent(
-            { ...config, reference, idempotencyKey } as any,
+            { ...identityConfig, reference, idempotencyKey } as any,
             paymentMethod,
             country,
             {
