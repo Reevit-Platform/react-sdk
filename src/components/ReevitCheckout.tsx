@@ -327,10 +327,17 @@ export function ReevitCheckout({
     // widget can display provider options. Create/reuse a method-specific intent
     // before opening the provider, otherwise Paystack defaults that first intent
     // to card even when the shopper subsequently selects Mobile Money.
-    if (!initialPaymentIntent && !sessionSecret) {
-      const allowedProviders = providerOptions.length > 1 && selectedProvider
-        ? [selectedProvider]
-        : undefined;
+    if (!initialPaymentIntent) {
+      const finalProvider = selectedProvider || activeProvider?.provider;
+      if (!finalProvider || !activeProvider?.methods.includes(selectedMethod)) {
+        onError?.({
+          code: 'UNSUPPORTED_CHECKOUT_SELECTION',
+          message: 'The selected provider does not support this payment method.',
+          recoverable: true,
+        });
+        return;
+      }
+      const allowedProviders = [finalProvider];
       const intent = await initialize(selectedMethod, { allowedProviders });
       if (!intent) return;
     }
@@ -352,13 +359,13 @@ export function ReevitCheckout({
   }, [
     selectedMethod,
     initialPaymentIntent,
-    sessionSecret,
-    providerOptions.length,
     selectedProvider,
+    activeProvider,
     initialize,
     paymentIntent,
     momoData,
     phone,
+    onError,
   ]);
 
   // Handle mobile money form submission

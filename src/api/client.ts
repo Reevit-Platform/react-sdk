@@ -31,6 +31,7 @@ export interface PaymentIntentResponse {
   org_id?: string;
   connection_id: string;
   provider: string;
+  method?: string;
   provider_ref_id?: string;
   status: string;
   client_secret: string;
@@ -62,6 +63,15 @@ export interface CheckoutSessionResponse {
   session_secret: string;
   payment_intent: PaymentIntentResponse;
   expires_at?: string;
+}
+
+export interface CheckoutSessionSelectionRequest {
+  method: PaymentMethod;
+  provider: string;
+}
+
+export interface CheckoutSessionSelectionResponse {
+  payment_intent: PaymentIntentResponse;
 }
 
 /**
@@ -213,7 +223,7 @@ export class ReevitAPIClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.9.0',
+      'X-Reevit-Client-Version': '0.10.4',
     };
     if (this.publicKey) {
       headers['X-Reevit-Key'] = this.publicKey;
@@ -365,6 +375,20 @@ export class ReevitAPIClient {
     return this.request<CheckoutSessionResponse>(
       'GET',
       `/v1/checkout/sessions/${encodeURIComponent(sessionSecret)}`
+    );
+  }
+
+  /** Finalizes a server-created checkout session with the shopper's last selection. */
+  async selectCheckoutSession(
+    sessionSecret: string,
+    selection: CheckoutSessionSelectionRequest,
+    idempotencyKey?: string
+  ): Promise<{ data?: CheckoutSessionSelectionResponse; error?: PaymentError }> {
+    return this.request<CheckoutSessionSelectionResponse>(
+      'POST',
+      `/v1/checkout/sessions/${encodeURIComponent(sessionSecret)}/select`,
+      selection,
+      idempotencyKey
     );
   }
 
