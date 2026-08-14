@@ -1,3 +1,19 @@
+# @reevit/react v0.10.3
+
+**Release Date:** August 14, 2026
+
+## 🐛 Bug Fixes
+
+- Recreate the checkout intent with the shopper's selected payment method
+  before opening the PSP, so Paystack Mobile Money no longer resumes the
+  card-only transaction created while loading provider options.
+- Preserve the selected method across intent refreshes and enforce an explicit
+  provider selection when creating the final intent.
+- Forward merchant-provided idempotency keys through `ReevitCheckout` and
+  scope them by the final method/provider selection.
+
+---
+
 # @reevit/react v0.10.1
 
 **Release Date:** July 7, 2026
