@@ -328,10 +328,10 @@ export function ReevitCheckout({
     // before opening the provider, otherwise Paystack defaults that first intent
     // to card even when the shopper subsequently selects Mobile Money.
     if (!initialPaymentIntent && !sessionSecret) {
-      const preferredProvider = providerOptions.length > 1
-        ? selectedProvider || undefined
+      const allowedProviders = providerOptions.length > 1 && selectedProvider
+        ? [selectedProvider]
         : undefined;
-      const intent = await initialize(selectedMethod, { preferredProvider });
+      const intent = await initialize(selectedMethod, { allowedProviders });
       if (!intent) return;
     }
 
