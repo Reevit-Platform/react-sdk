@@ -78,7 +78,11 @@ function reevitReducer(state: ReevitState, action: ReevitAction): ReevitState {
         status: 'ready',
         paymentIntent: action.payload,
         selectedMethod:
-          action.payload.availableMethods?.length === 1 ? action.payload.availableMethods[0] : null,
+          state.selectedMethod && action.payload.availableMethods?.includes(state.selectedMethod)
+            ? state.selectedMethod
+            : action.payload.availableMethods?.length === 1
+              ? action.payload.availableMethods[0]
+              : null,
       };
     case 'INIT_ERROR':
       return { ...state, status: 'failed', error: action.payload };
@@ -327,7 +331,7 @@ export function useReevit(options: UseReevitOptions) {
       options?: { preferredProvider?: string; allowedProviders?: string[] }
     ) => {
       if (config.initialPaymentIntent) {
-        return;
+        return config.initialPaymentIntent;
       }
 
       let requestId = 0;
@@ -349,8 +353,17 @@ export function useReevit(options: UseReevitOptions) {
             : undefined;
         const paymentMethod = method ?? defaultMethod;
 
+        const selectionScope = [
+          paymentMethod,
+          options?.preferredProvider,
+          ...(options?.allowedProviders ? [...options.allowedProviders].sort() : []),
+        ].filter(Boolean).join(':');
+        const identityConfig = config.idempotencyKey && selectionScope
+          ? { ...config, idempotencyKey: `${config.idempotencyKey}:${selectionScope}` }
+          : config;
+
         const identity = resolveIntentIdentity({
-          config: config as any,
+          config: identityConfig as any,
           method: paymentMethod as any,
           preferredProvider: options?.preferredProvider,
           allowedProviders: options?.allowedProviders,
@@ -360,7 +373,7 @@ export function useReevit(options: UseReevitOptions) {
         intentKey = idempotencyKey;
 
         if (currentIntentKeyRef.current === idempotencyKey && stateRef.current.paymentIntent) {
-          return;
+          return stateRef.current.paymentIntent;
         }
 
         currentIntentKeyRef.current = idempotencyKey;
@@ -419,7 +432,7 @@ export function useReevit(options: UseReevitOptions) {
           }
 
           const result = await apiClient.createPaymentIntent(
-            { ...config, reference, idempotencyKey } as any,
+            { ...identityConfig, reference, idempotencyKey } as any,
             paymentMethod,
             country,
             {
@@ -464,6 +477,7 @@ export function useReevit(options: UseReevitOptions) {
         const paymentIntent = mapToPaymentIntent(data, { ...config, reference, idempotencyKey });
 
         dispatch({ type: 'INIT_SUCCESS', payload: paymentIntent });
+        return paymentIntent;
       } catch (err) {
         if (intentKey) {
           clearIntentCacheEntry(intentKey);
@@ -482,6 +496,7 @@ export function useReevit(options: UseReevitOptions) {
           };
         dispatch({ type: 'INIT_ERROR', payload: error });
         onError?.(error);
+        return undefined;
       }
     },
     [config, onError, apiBaseUrl]
