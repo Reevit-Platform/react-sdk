@@ -261,7 +261,7 @@ async function selectCheckoutSession(
         'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
         'X-Reevit-Client': '@reevit/react',
-        'X-Reevit-Client-Version': '0.10.4',
+        'X-Reevit-Client-Version': '0.10.5',
       },
       body: JSON.stringify({ method, provider }),
     },
