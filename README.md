@@ -8,6 +8,22 @@ Unified Payment Widget for React Applications. Accept card and mobile money paym
 npm install @reevit/react
 ```
 
+## Compatibility
+
+`@reevit/core` is a regular `dependencies` entry of this package — npm installs
+it for you. Do not add it to your own `package.json` unless you import it
+directly.
+
+| `@reevit/react` | Requires `@reevit/core` |
+|---|---|
+| 0.10.x | `^0.9.0` (`>=0.9.0 <0.10.0`) |
+| 0.9.x | `^0.9.0` (`>=0.9.0 <0.10.0`) |
+
+On a `0.x` package a caret range pins the **minor**, not the major:
+`^0.9.0` resolves to `>=0.9.0 <0.10.0`. A future `@reevit/core` 0.10.0 is
+therefore not picked up automatically — the React, Vue and Svelte manifests
+have to be bumped together in the same release.
+
 ## Quick Start
 
 The simplest way to integrate Reevit is using the `ReevitCheckout` component.
