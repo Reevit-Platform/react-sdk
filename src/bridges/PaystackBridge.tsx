@@ -114,14 +114,6 @@ export function PaystackBridge({
 
   const startPayment = useCallback(async () => {
     try {
-      console.log('[PaystackBridge] Starting payment', {
-        hasPublicKey: !!publicKey,
-        email,
-        amount,
-        reference,
-        hasAccessCode: !!accessCode,
-      });
-
       // Validate required parameters before attempting to load Paystack.
       // With an access code the transaction already exists at Paystack, so the
       // popup only needs the code itself — key/email/amount live server-side.
@@ -142,7 +134,6 @@ export function PaystackBridge({
       }
 
       const handleTransactionComplete = (response: PaystackResponse) => {
-        console.log('[PaystackBridge] Callback received', response);
         // Determine the payment method used
         let usedMethod: any = 'card';
         if (channels && channels.length === 1) {
@@ -173,7 +164,6 @@ export function PaystackBridge({
       const callbacks: PaystackCallbacks = {
         onSuccess: handleTransactionComplete,
         onCancel: () => {
-          console.log('[PaystackBridge] Modal closed');
           onClose();
         },
         onError: (err) => {
