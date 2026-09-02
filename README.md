@@ -16,8 +16,13 @@ directly.
 
 | `@reevit/react` | Requires `@reevit/core` |
 |---|---|
-| 0.10.x | `^0.9.0` (`>=0.9.0 <0.10.0`) |
+| 0.10.5+ | `^0.9.1` (`>=0.9.1 <0.10.0`) |
+| 0.10.0 – 0.10.4 | `^0.9.0` (`>=0.9.0 <0.10.0`) |
 | 0.9.x | `^0.9.0` (`>=0.9.0 <0.10.0`) |
+
+`@reevit/react` 0.10.5 requires `@reevit/core` **0.9.1 or newer**: amount
+formatting is re-exported from core, and core 0.9.0 renders zero-decimal
+currencies such as XOF and JPY with two invented decimal places.
 
 On a `0.x` package a caret range pins the **minor**, not the major:
 `^0.9.0` resolves to `>=0.9.0 <0.10.0`. A future `@reevit/core` 0.10.0 is
