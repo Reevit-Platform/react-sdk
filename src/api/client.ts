@@ -223,7 +223,7 @@ export class ReevitAPIClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.10.4',
+      'X-Reevit-Client-Version': '0.10.5',
     };
     if (this.publicKey) {
       headers['X-Reevit-Key'] = this.publicKey;

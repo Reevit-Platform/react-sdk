@@ -23,18 +23,14 @@ export function resolveAssetSrc(asset?: AssetSource | null): string | undefined 
 }
 
 /**
- * Format amount for display
+ * Amount formatting lives in @reevit/core so every wrapper renders the same
+ * number. The fork that used to live here divided by 100 unconditionally, which
+ * showed a 5,000 XOF charge as "XOF 50.00".
+ *
+ * Requires @reevit/core >= 0.9.1 — 0.9.0 has the un-fixed implementation and
+ * does not export currencyExponent/toMinorUnits.
  */
-export function formatAmount(amount: number, currency: string): string {
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-  });
-
-  // Amount is in smallest unit (pesewas, kobo, cents)
-  return formatter.format(amount / 100);
-}
+export { formatAmount, currencyExponent, toMinorUnits } from '@reevit/core';
 
 /**
  * Generate a unique reference if not provided

@@ -261,7 +261,7 @@ async function selectCheckoutSession(
         'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
         'X-Reevit-Client': '@reevit/react',
-        'X-Reevit-Client-Version': '0.10.4',
+        'X-Reevit-Client-Version': '0.10.5',
       },
       body: JSON.stringify({ method, provider }),
     },
@@ -284,15 +284,47 @@ async function selectCheckoutSession(
   return { data: responseData as CheckoutSessionSelectionResponse };
 }
 
-function checkoutSelectionIdentity(sessionSecret: string, method: PaymentMethod, provider: string): string {
-  const value = `${sessionSecret}:${method}:${provider}`;
-  let hash = 5381;
-  for (let i = 0; i < value.length; i++) {
-    hash = ((hash << 5) + hash) + value.charCodeAt(i);
-    hash |= 0;
+// FNV-1a, 128-bit parameters (RFC draft-eastlake-fnv): offset basis and prime.
+const FNV_1A_128_OFFSET_BASIS = 0x6c62272e07bb014262b821756295c58dn;
+const FNV_1A_128_PRIME = 0x0000000001000000000000000000013bn;
+const FNV_1A_128_MASK = (1n << 128n) - 1n;
+
+/**
+ * 128-bit digest of a UTF-8 string, as 32 lowercase hex characters.
+ *
+ * Deliberately synchronous: `checkoutSelectionIdentity` is read on the
+ * synchronous path of `initialize()`, before the in-flight intent promise is
+ * registered, so two Continue clicks in the same tick both reach the cache.
+ * Awaiting `crypto.subtle.digest` here would let both clicks slip past that
+ * cache and send two selection requests.
+ *
+ * FNV-1a is not a cryptographic hash and is not used as one: the input already
+ * travels to the same endpoint in the request URL, so the key reveals nothing
+ * new. What matters is the output space — 2^128 instead of djb2's 2^32, which
+ * collided at ~50% odds around 77k distinct selections inside the backend's
+ * 24h idempotency window.
+ */
+function digest128Hex(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let hash = FNV_1A_128_OFFSET_BASIS;
+
+  for (let i = 0; i < bytes.length; i++) {
+    hash ^= BigInt(bytes[i]);
+    hash = (hash * FNV_1A_128_PRIME) & FNV_1A_128_MASK;
   }
 
-  return `reevit_checkout_selection_${(hash >>> 0).toString(16)}`;
+  return hash.toString(16).padStart(32, '0');
+}
+
+/**
+ * Stable identity for one (session, method, provider) selection.
+ *
+ * Determinism is intentional — re-selecting the same method on the same session
+ * must replay the first selection rather than create a second one — so this must
+ * never become a random UUID.
+ */
+export function checkoutSelectionIdentity(sessionSecret: string, method: PaymentMethod, provider: string): string {
+  return `reevit_checkout_selection_${digest128Hex(`${sessionSecret}:${method}:${provider}`)}`;
 }
 
 /**

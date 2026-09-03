@@ -179,6 +179,46 @@ describe('ReevitCheckout server-created sessions', () => {
     });
   });
 
+  it('never logs the shopper to the console while starting a payment', async () => {
+    const { resumeTransaction } = installPaystackBridge();
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method || init.method === 'GET') {
+        return new Response(JSON.stringify(sessionResponse('initial-access-code')), { status: 200 });
+      }
+
+      return new Response(JSON.stringify({
+        payment_intent: sessionResponse('pii-card-access-code').payment_intent,
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <ReevitCheckout
+        isOpen
+        sessionSecret={SESSION_SECRET + '_pii'}
+        paymentMethods={['card', 'mobile_money']}
+        email="shopper@example.com"
+        phone="0241234567"
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /CARD/ }));
+    fireEvent.click(screen.getByRole('button', { name: /MAKE PAYMENT/ }));
+
+    await waitFor(() => expect(resumeTransaction).toHaveBeenCalledWith(
+      'pii-card-access-code',
+      expect.any(Object),
+    ));
+
+    const logged = JSON.stringify(logSpy.mock.calls);
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(logged).not.toContain('shopper@example.com');
+    expect(logged).not.toContain('0241234567');
+    expect(logged).not.toContain('pii-card-access-code');
+  });
+
   it('keeps the existing public-key intent refresh flow working', async () => {
     const { resumeTransaction } = installPaystackBridge();
 

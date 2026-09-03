@@ -203,7 +203,6 @@ export function HubtelBridge({
         purchaseInfo,
         config,
         callBacks: {
-          onInit: () => console.log('Hubtel checkout initialized'),
           onPaymentSuccess: (data: any) => {
             const payload = parseHubtelCallbackPayload(data);
             const transactionReference = readHubtelField(payload, [
@@ -245,7 +244,6 @@ export function HubtelBridge({
             };
             onError(error);
           },
-          onLoad: () => console.log('Hubtel checkout loaded'),
           onClose: () => {
             onClose();
           },

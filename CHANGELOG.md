@@ -1,3 +1,41 @@
+# @reevit/react v0.10.5
+
+**Release Date:** September 2, 2026
+
+## 🐛 Bug Fixes
+
+- **Stop logging the shopper to the browser console.** The Paystack bridge
+  printed the shopper's email, amount and reference on every payment start, and
+  the full Paystack callback on completion; the Hubtel bridge printed its
+  lifecycle. All five `console.log` calls are gone from the shipped bundle.
+- **Zero-decimal currencies render honestly.** `formatAmount` no longer divides
+  every amount by 100 — a 5,000 XOF charge showed as `XOF 50.00`. The local fork
+  is deleted; formatting now comes from `@reevit/core`, which consults the
+  currency's exponent.
+- **Widen the checkout-selection idempotency key.** The key sent on
+  `POST /v1/checkout/sessions/{secret}/select` was a 32-bit djb2 hash of
+  `(sessionSecret, method, provider)`, so distinct selections collided at roughly
+  50% odds around 77k of them inside the backend's 24h idempotency window — one
+  shopper's method selection could replay another's. It is now a 128-bit digest.
+  The key stays deterministic on purpose: re-selecting the same method on the
+  same session must replay, not create a second selection.
+
+## 📦 Dependencies
+
+- Requires `@reevit/core` **`^0.9.1`** (was `^0.9.0`). 0.9.0 has the un-fixed
+  `formatAmount` and does not export `currencyExponent`/`toMinorUnits`, so the
+  bump is required, not merely permitted.
+- **Release order:** `@reevit/core` 0.9.1 must be published to npm before
+  `@reevit/react` 0.10.5 can install, build in CI, or be published.
+
+## ✅ Tests
+
+- 9 new tests: `formatAmount` for XOF/JPY/GHS/NGN/USD and the exponent helpers,
+  the selection key's determinism, separation and 128-bit width, and a console
+  spy asserting no shopper data reaches `console.log` during a payment start.
+
+---
+
 # @reevit/react v0.10.4
 
 **Release Date:** August 14, 2026
