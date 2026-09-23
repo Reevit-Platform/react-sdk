@@ -1,3 +1,49 @@
+# @reevit/react — Unreleased
+
+## 🔒 Security
+
+- **Hubtel checkout no longer uses the merchant's Hubtel credentials.** The
+  Hubtel bridge used to fetch `basicAuth` (base64 `client_id:client_secret`)
+  from `POST /v1/payments/hubtel/sessions/{id}` and pass it to Hubtel's
+  in-browser checkout, which put the merchant's Hubtel API login in the
+  shopper's browser. The bridge now opens the hosted checkout the Reevit API
+  already created (`checkoutDirectUrl` embedded in a plain overlay, or
+  `checkoutUrl`) and learns the result by polling
+  `POST /v1/payments/{id}/confirm-intent`. It never reads a result from the
+  Hubtel page. A message from a `*.hubtel.com` page only triggers an immediate
+  status check.
+- The `@hubteljs/checkout` dependency is removed.
+
+## ⚠️ Deprecated
+
+- `basicAuth` on `HubtelBridge` and `openHubtelPopup`, and
+  `PaymentIntent.pspCredentials.basicAuth`, are ignored. They stay in the types
+  so existing code still compiles, and outside production builds the SDK logs a
+  single console warning when one is passed. If you ever passed `basicAuth`
+  yourself, rotate those Hubtel API keys.
+- `HubtelBridge` props `merchantAccount`, `email`, `phone`, `description`,
+  `callbackUrl` and `hubtelSessionToken` are ignored; Hubtel's hosted checkout
+  collects what it needs.
+- `openHubtelPopup` now takes `paymentId` + `clientSecret` (full outcome
+  tracking) or a `checkoutUrl` (display only). Its old purchase fields are
+  ignored.
+- `HubtelSessionResponse` now describes the new response (`checkoutUrl`,
+  `checkoutDirectUrl`, `checkoutId`, `status`, `paymentId`, optional expiry).
+  `token`, `merchantAccount` and `basicAuth` are optional and deprecated.
+
+## ⚠️ Compatibility
+
+- Works with backends before and after the server change: an older backend
+  still returns `basicAuth` and no checkout URL. The SDK ignores `basicAuth` and
+  opens the payment's client secret instead, which on Hubtel payments is the
+  hosted checkout URL.
+- **Breaking for published versions up to 0.10.4 once the backend change
+  deploys.** The session endpoint stops returning `basicAuth`, so those versions
+  show "Failed to create Hubtel session" and cannot take Hubtel payments. Other
+  providers are unaffected. Merchants using Hubtel must upgrade.
+
+---
+
 # @reevit/react v0.10.5
 
 **Release Date:** September 2, 2026

@@ -553,15 +553,9 @@ export function ReevitCheckout({
             <HubtelBridge
               paymentId={paymentIntent?.id || ''}
               publicKey={publicKey}
-              merchantAccount={paymentIntent?.pspCredentials?.merchantAccount || ''}
               amount={displayAmount}
               currency={displayCurrency}
               reference={paymentIntent?.providerRefId || paymentIntent?.reference || reference}
-              email={email}
-              phone={momoData?.phone || phone}
-              description={`Payment ${paymentIntent?.reference || reference || ''}`}
-              callbackUrl={`${apiBaseUrl || 'https://api.reevit.io'}/v1/webhooks/incoming/hubtel`}
-              hubtelSessionToken={paymentIntent?.id ? paymentIntent.id : undefined}
               clientSecret={paymentIntent?.clientSecret}
               apiBaseUrl={apiBaseUrl}
               preferredMethod={selectedMethod || undefined}
