@@ -39,9 +39,12 @@ export interface PaymentIntentResponse {
   psp_public_key?: string;
   psp_credentials?: {
     merchantAccount?: string | number;
+    /** @deprecated Never returned by the Reevit API any more. */
     basicAuth?: string;
     [key: string]: unknown;
   };
+  /** Provider next step, e.g. Hubtel's `checkout_url` / `checkout_direct_url`. */
+  next_action?: Record<string, unknown>;
   amount: number;
   currency: string;
   fee_amount: number;
@@ -75,20 +78,32 @@ export interface CheckoutSessionSelectionResponse {
 }
 
 /**
- * Response from creating a Hubtel session token.
- * The token provides secure, short-lived access to Hubtel checkout without exposing credentials.
+ * Response from POST /v1/payments/hubtel/sessions/{id}: the Hubtel hosted
+ * checkout the Reevit API already created for the payment. It carries no
+ * Hubtel credentials.
  */
 export interface HubtelSessionResponse {
-  /** Short-lived session token for Hubtel checkout */
-  token: string;
-  /** Hubtel merchant account number */
-  merchantAccount: string;
-  /** Base64 basic auth for Hubtel checkout (exposes credentials) */
+  paymentId?: string;
+  /** Reevit payment status when the session was created */
+  status?: string;
+  /** Hubtel hosted checkout page */
+  checkoutUrl?: string;
+  /** Hubtel's embeddable (iframe) checkout, when Hubtel issued one */
+  checkoutDirectUrl?: string;
+  checkoutId?: string;
+  /** Unix timestamp when the payment expires, if it has an expiry */
+  expiresAt?: number;
+  /** Seconds until the payment expires, if it has an expiry */
+  expiresInSeconds?: number;
+  /** @deprecated No longer returned. */
+  token?: string;
+  /** @deprecated No longer returned. */
+  merchantAccount?: string;
+  /**
+   * @deprecated No longer returned, and ignored if present. It was the
+   * merchant's Hubtel API login.
+   */
   basicAuth?: string;
-  /** Token expiry time in seconds */
-  expiresInSeconds: number;
-  /** Unix timestamp when the token expires */
-  expiresAt: number;
 }
 
 export interface ConfirmPaymentRequest {
@@ -417,12 +432,11 @@ export class ReevitAPIClient {
   }
 
   /**
-   * Creates a Hubtel session token for secure checkout.
-   * This endpoint generates a short-lived token that maps to Hubtel credentials server-side,
-   * avoiding exposure of sensitive credentials to the client.
+   * Fetches the Hubtel hosted checkout for a payment.
    *
    * @param paymentId - The payment intent ID for Hubtel checkout
-   * @returns Hubtel session with token, merchant account, and expiry information
+   * @param clientSecret - The payment's client secret (for public, key-less calls)
+   * @returns The hosted checkout URL(s); never Hubtel credentials
    */
   async createHubtelSession(
     paymentId: string,

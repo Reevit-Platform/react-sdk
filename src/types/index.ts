@@ -215,11 +215,14 @@ export interface PaymentIntent {
   clientSecret: string;
   /** PSP's public key for client-side SDK initialization */
   pspPublicKey?: string;
-  /** PSP-specific credentials for client-side checkout (e.g., Hubtel's merchantAccount, basicAuth) */
+  /** Non-secret PSP values for client-side checkout (e.g. Hubtel's merchantAccount) */
   pspCredentials?: {
     /** Hubtel merchant account number */
     merchantAccount?: string | number;
-    /** Hubtel basic auth header value */
+    /**
+     * @deprecated Never returned by the Reevit API any more, and ignored by the
+     * SDK. Hubtel checkout opens the hosted checkout URL instead.
+     */
     basicAuth?: string;
     /** Any other PSP-specific credential fields */
     [key: string]: unknown;

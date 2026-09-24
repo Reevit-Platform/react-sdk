@@ -1,358 +1,234 @@
 /**
  * Hubtel Bridge
- * Handles integration with Hubtel payment using @hubteljs/checkout npm package
  *
- * Supports two authentication methods:
- * 1. Session (recommended): Fetches base64 basicAuth from the backend session endpoint
- * 2. Basic Auth (legacy): Pass basicAuth directly (deprecated - credentials exposed)
+ * Opens Hubtel's hosted checkout for a payment the Reevit API has already
+ * initiated, and reports the outcome from Reevit's confirm endpoint. Hubtel
+ * credentials never reach the browser: the API returns only the checkout URL.
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
 import { LoadingState } from '../components/LoadingState';
-
-const DEFAULT_REEVIT_API_BASE_URL = 'https://api.reevit.io';
-
-/**
- * Lazily loads the Hubtel checkout SDK.
- *
- * `@hubteljs/checkout` ships an ESM dist whose internal `import './CheckoutSdk'`
- * omits the required `.js` extension, which Node's native ESM resolver rejects.
- * A top-level `import` of it would therefore break `require('@reevit/react')` and
- * native-ESM imports under Node (test setups, edge runtimes), even though bundlers
- * like webpack tolerate the malformed specifier. We defer the import to the moment
- * the Hubtel payment path actually runs — mirroring how the other PSP bridges load
- * their scripts at runtime — so merely importing this package never pulls in the
- * broken dist at module-eval time. The promise is memoized so the dynamic import
- * resolves once and is reused across payments.
- */
-type CheckoutSdkCtor = (typeof import('@hubteljs/checkout'))['default'];
-
-let checkoutSdkPromise: Promise<CheckoutSdkCtor> | null = null;
-
-function loadHubtelCheckout(): Promise<CheckoutSdkCtor> {
-  if (!checkoutSdkPromise) {
-    checkoutSdkPromise = import('@hubteljs/checkout').then((mod) => mod.default);
-  }
-  return checkoutSdkPromise;
-}
-
-function getHubtelCallbackURL(apiBaseUrl?: string): string {
-  return `${apiBaseUrl || DEFAULT_REEVIT_API_BASE_URL}/v1/webhooks/incoming/hubtel`;
-}
-
-function parseHubtelCallbackPayload(input: unknown): Record<string, unknown> {
-  if (!input || typeof input !== 'object') {
-    return {};
-  }
-
-  const raw = input as Record<string, unknown>;
-  const nested = raw.data;
-  if (typeof nested === 'string') {
-    try {
-      const parsed = JSON.parse(nested) as unknown;
-      if (parsed && typeof parsed === 'object') {
-        return { ...raw, ...(parsed as Record<string, unknown>) };
-      }
-    } catch {
-      // Ignore parsing errors and fall back to raw payload.
-    }
-  } else if (nested && typeof nested === 'object') {
-    return { ...raw, ...(nested as Record<string, unknown>) };
-  }
-
-  return raw;
-}
-
-function readHubtelField(payload: Record<string, unknown>, keys: string[]): string {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-
-  return '';
-}
+import {
+  openHubtelCheckoutUrl,
+  startHubtelHostedCheckout,
+  warnHubtelBasicAuthIgnored,
+} from './hubtelHostedCheckout';
 
 interface HubtelBridgeProps {
   paymentId: string;
   publicKey?: string;
-  merchantAccount: string | number;
   amount: number;
   currency?: string;
   reference?: string;
-  email?: string;
-  phone?: string;
-  description?: string;
-  callbackUrl?: string;
   apiBaseUrl?: string;
+  /** The payment's client secret; authorises the session and status calls. */
   clientSecret?: string;
-  /** Session token from server (triggers session fetch) */
-  hubtelSessionToken?: string;
-  /** Base64 basic auth credential (legacy - credentials exposed) */
-  basicAuth?: string;
   preferredMethod?: PaymentMethod;
   onSuccess: (result: PaymentResult) => void;
   onError: (error: PaymentError) => void;
   onClose: () => void;
   autoStart?: boolean;
+  /** @deprecated Ignored. Hubtel's hosted checkout already knows the merchant. */
+  merchantAccount?: string | number;
+  /** @deprecated Ignored. Collected on Hubtel's hosted checkout. */
+  email?: string;
+  /** @deprecated Ignored. Collected on Hubtel's hosted checkout. */
+  phone?: string;
+  /** @deprecated Ignored. Set when the payment is created. */
+  description?: string;
+  /** @deprecated Ignored. The Reevit API registers Hubtel's callback. */
+  callbackUrl?: string;
+  /** @deprecated Ignored. The session is always fetched for `paymentId`. */
+  hubtelSessionToken?: string;
+  /**
+   * @deprecated Ignored, and never send it: it is the merchant's Hubtel API
+   * login (base64 client_id:client_secret). Hubtel checkout no longer needs it.
+   */
+  basicAuth?: string;
 }
+
+type BridgeStage = 'idle' | 'connecting' | 'open';
 
 export function HubtelBridge({
   paymentId,
   publicKey,
-  merchantAccount,
   amount,
   currency,
   reference,
-  email,
-  phone,
-  description = 'Payment',
-  callbackUrl,
   apiBaseUrl,
   clientSecret,
-  hubtelSessionToken,
-  basicAuth,
   preferredMethod,
   onSuccess,
   onError,
   onClose,
   autoStart = true,
+  basicAuth,
 }: HubtelBridgeProps) {
-  const initialized = useRef(false);
-  const [authValue, setAuthValue] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [resolvedMerchantAccount, setResolvedMerchantAccount] = useState<string | number>(merchantAccount);
+  const [stage, setStage] = useState<BridgeStage>(autoStart ? 'connecting' : 'idle');
+  const [started, setStarted] = useState(autoStart);
+
+  // Callbacks change identity on most parent renders; read them through a ref
+  // so a re-render never restarts an open checkout.
+  const latest = useRef({ amount, currency, reference, preferredMethod, onSuccess, onError, onClose });
+  latest.current = { amount, currency, reference, preferredMethod, onSuccess, onError, onClose };
 
   useEffect(() => {
-    setResolvedMerchantAccount(merchantAccount);
-  }, [merchantAccount]);
+    if (basicAuth) {
+      warnHubtelBasicAuthIgnored();
+    }
+  }, [basicAuth]);
 
-  // Fetch basicAuth if session trigger is provided, otherwise use legacy basicAuth
   useEffect(() => {
-    const fetchAuth = async () => {
-      if (hubtelSessionToken) {
-        setIsLoading(true);
-        try {
-          const client = createReevitClient({ publicKey, baseUrl: apiBaseUrl });
-          const { data, error } = await client.createHubtelSession(paymentId, clientSecret);
-          if (error || !data?.basicAuth) {
-            onError({
-              code: 'SESSION_ERROR',
-              message: error?.message || 'Failed to create Hubtel session',
-              recoverable: true,
-            });
-            return;
-          }
-          setAuthValue(data.basicAuth);
-          if (data.merchantAccount) {
-            setResolvedMerchantAccount(data.merchantAccount);
-          }
-        } catch (err) {
-          onError({
-            code: 'SESSION_ERROR',
-            message: 'Failed to create Hubtel session',
-            recoverable: true,
-            originalError: err,
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      } else if (basicAuth) {
-        setAuthValue(basicAuth);
-      }
-    };
-
-    fetchAuth();
-  }, [paymentId, publicKey, apiBaseUrl, clientSecret, hubtelSessionToken, basicAuth, onError]);
-
-  const startPayment = useCallback(async () => {
-    if (isLoading || !authValue) {
+    if (!started) {
       return;
     }
 
-    try {
-      const CheckoutSdk = await loadHubtelCheckout();
-      const checkout = new CheckoutSdk();
+    let cancelled = false;
+    const client = createReevitClient({ publicKey, baseUrl: apiBaseUrl });
+    setStage('connecting');
 
-      const methodPreference =
-        preferredMethod === 'mobile_money' ? 'momo' : preferredMethod === 'card' ? 'card' : undefined;
-
-      const purchaseInfo = {
-        amount: amount / 100, // Convert from minor to major units
-        purchaseDescription: description,
-        customerPhoneNumber: phone || '',
-        ...(email ? { customerEmail: email } : {}),
-        clientReference: reference || paymentId || `hubtel_${Date.now()}`,
-        ...(methodPreference ? { paymentMethod: methodPreference } : {}),
-      };
-
-      const config = {
-        branding: 'enabled' as const,
-        callbackUrl: callbackUrl || getHubtelCallbackURL(apiBaseUrl),
-        merchantAccount: typeof resolvedMerchantAccount === 'string'
-          ? parseInt(resolvedMerchantAccount, 10)
-          : resolvedMerchantAccount,
-        basicAuth: authValue || '',
-        ...(methodPreference ? { paymentMethod: methodPreference } : {}),
-      };
-
-      checkout.openModal({
-        purchaseInfo,
-        config,
-        callBacks: {
-          onPaymentSuccess: (data: any) => {
-            const payload = parseHubtelCallbackPayload(data);
-            const transactionReference = readHubtelField(payload, [
-              'transactionId',
-              'transaction_id',
-              'transactionReference',
-              'paymentReference',
-              'checkoutId',
-            ]);
-            const clientReference = readHubtelField(payload, ['clientReference', 'client_reference']);
-            const result: PaymentResult = {
-              paymentId: paymentId,
-              reference: clientReference || reference || paymentId,
-              amount: amount,
-              currency: currency || 'GHS',
-              paymentMethod: preferredMethod || 'mobile_money',
-              psp: 'hubtel',
-              pspReference: transactionReference || paymentId,
-              status: 'success',
-              metadata: {
-                hubtel_payload: payload,
-                hubtel_raw: data,
-              },
-            };
-            onSuccess(result);
-            checkout.closePopUp();
+    const handle = startHubtelHostedCheckout({
+      clientSecret,
+      createSession: () => client.createHubtelSession(paymentId, clientSecret),
+      checkStatus: async () => {
+        const { data, error } = clientSecret
+          ? await client.confirmPaymentIntent(paymentId, clientSecret)
+          : await client.confirmPayment(paymentId);
+        return { status: data?.status, error };
+      },
+      onOpen: () => {
+        if (!cancelled) setStage('open');
+      },
+      onSuccess: ({ status, checkoutId }) => {
+        const current = latest.current;
+        current.onSuccess({
+          paymentId,
+          reference: current.reference || paymentId,
+          amount: current.amount,
+          currency: current.currency || 'GHS',
+          paymentMethod: current.preferredMethod || 'mobile_money',
+          psp: 'hubtel',
+          pspReference: checkoutId || paymentId,
+          status: 'success',
+          metadata: {
+            hubtel_checkout_id: checkoutId,
+            backend_status: status,
           },
-          onPaymentFailure: (data: any) => {
-            const payload = parseHubtelCallbackPayload(data);
-            const error: PaymentError = {
-              code: 'PAYMENT_FAILED',
-              message:
-                readHubtelField(payload, ['message', 'error', 'reason']) ||
-                'Payment failed',
-              recoverable: true,
-              details: {
-                hubtel_payload: payload,
-              },
-            };
-            onError(error);
-          },
-          onClose: () => {
-            onClose();
-          },
-        },
-      });
-    } catch (err) {
-      const error: PaymentError = {
-        code: 'PSP_ERROR',
-        message: 'Failed to initialize Hubtel',
-        recoverable: true,
-        originalError: err,
-      };
-      onError(error);
-    }
-  }, [
-    amount,
-    reference,
-    phone,
-    description,
-    callbackUrl,
-    paymentId,
-    apiBaseUrl,
-    authValue,
-    isLoading,
-    preferredMethod,
-    onSuccess,
-    onError,
-    onClose,
-    resolvedMerchantAccount,
-    currency,
-  ]);
+        });
+      },
+      onError: (error) => latest.current.onError(error),
+      onClose: () => latest.current.onClose(),
+    });
 
-  useEffect(() => {
-    if (autoStart && !initialized.current && !isLoading && authValue) {
-      initialized.current = true;
-      startPayment();
-    }
-  }, [autoStart, startPayment, isLoading, authValue]);
+    return () => {
+      cancelled = true;
+      handle.cancel();
+    };
+  }, [started, paymentId, clientSecret, publicKey, apiBaseUrl]);
+
+  if (stage === 'idle') {
+    return (
+      <div className="reevit-brut__state">
+        <span className="reevit-brut__state-marker">PAYMENT GATEWAY</span>
+        <h3 className="reevit-brut__state-title">Pay with Hubtel</h3>
+        <p className="reevit-brut__state-sub">You'll finish the payment on Hubtel's secure checkout</p>
+        <button type="button" className="reevit-brut__cta" onClick={() => setStarted(true)}>
+          <span>CONTINUE TO HUBTEL</span>
+          <span>&rarr;</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (stage === 'open') {
+    return (
+      <LoadingState
+        marker="AWAITING CONFIRMATION"
+        title="Complete your payment with Hubtel"
+        message="This updates as soon as Hubtel confirms the payment"
+      />
+    );
+  }
 
   return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Hubtel" />;
 }
 
 /**
- * Opens Hubtel checkout modal directly
- * Uses the @hubteljs/checkout npm package
+ * Opens Hubtel's hosted checkout.
+ *
+ * Pass `paymentId` and `clientSecret` (with `publicKey`/`apiBaseUrl` as
+ * needed) to have the SDK fetch the checkout URL and report the outcome
+ * through `onSuccess`/`onError`. With only `checkoutUrl`, the page is shown and
+ * `onClose` fires when it is dismissed; confirm the payment server-side.
  */
 export function openHubtelPopup(config: {
-  merchantAccount: string | number;
-  description: string;
-  amount: number;
-  clientReference?: string;
-  callbackUrl?: string;
+  /** Reevit payment id; enables session fetch and outcome tracking. */
+  paymentId?: string;
+  /** The payment's client secret. */
+  clientSecret?: string;
+  publicKey?: string;
   apiBaseUrl?: string;
-  customerPhoneNumber?: string;
-  basicAuth?: string;
-  preferredMethod?: PaymentMethod;
+  /** A Hubtel hosted checkout URL you already hold. */
+  checkoutUrl?: string;
   onSuccess?: (data: Record<string, unknown>) => void;
   onError?: (data: Record<string, unknown>) => void;
   onClose?: () => void;
+  /** @deprecated Ignored. */
+  merchantAccount?: string | number;
+  /** @deprecated Ignored. */
+  description?: string;
+  /** @deprecated Ignored. */
+  amount?: number;
+  /** @deprecated Ignored. */
+  clientReference?: string;
+  /** @deprecated Ignored. */
+  callbackUrl?: string;
+  /** @deprecated Ignored. */
+  customerPhoneNumber?: string;
+  /** @deprecated Ignored, and never send it: it is the merchant's Hubtel API login. */
+  basicAuth?: string;
+  /** @deprecated Ignored. */
+  preferredMethod?: PaymentMethod;
 }): void {
-  const methodPreference =
-    config.preferredMethod === 'mobile_money' ? 'momo' : config.preferredMethod === 'card' ? 'card' : undefined;
+  if (config.basicAuth) {
+    warnHubtelBasicAuthIgnored();
+  }
 
-  const purchaseInfo = {
-    amount: config.amount,
-    purchaseDescription: config.description,
-    customerPhoneNumber: config.customerPhoneNumber || '',
-    clientReference: config.clientReference || `hubtel_${Date.now()}`,
-    ...(methodPreference ? { paymentMethod: methodPreference } : {}),
-  };
-
-  const checkoutConfig = {
-    branding: 'enabled' as const,
-    callbackUrl: config.callbackUrl || getHubtelCallbackURL(config.apiBaseUrl),
-    merchantAccount: typeof config.merchantAccount === 'string'
-      ? parseInt(config.merchantAccount, 10)
-      : config.merchantAccount,
-    basicAuth: config.basicAuth || '',
-    ...(methodPreference ? { paymentMethod: methodPreference } : {}),
-  };
-
-  // Load the Hubtel SDK lazily so importing this module never pulls in the
-  // package's broken ESM dist (see loadHubtelCheckout above). Fire-and-forget to
-  // preserve the synchronous `void` signature; a failed load routes to onError.
-  void loadHubtelCheckout()
-    .then((CheckoutSdk) => {
-      const checkout = new CheckoutSdk();
-      checkout.openModal({
-        purchaseInfo,
-        config: checkoutConfig,
-        callBacks: {
-          onPaymentSuccess: (data: any) => {
-            config.onSuccess?.(parseHubtelCallbackPayload(data));
-            checkout.closePopUp();
-          },
-          onPaymentFailure: (data: any) => {
-            config.onError?.(parseHubtelCallbackPayload(data));
-          },
-          onClose: () => {
-            config.onClose?.();
-          },
-        },
-      });
-    })
-    .catch((err) => {
-      config.onError?.({
-        code: 'PSP_ERROR',
-        message: 'Failed to load Hubtel checkout',
-        originalError: err,
-      });
+  if (config.paymentId) {
+    const paymentId = config.paymentId;
+    const client = createReevitClient({ publicKey: config.publicKey, baseUrl: config.apiBaseUrl });
+    startHubtelHostedCheckout({
+      clientSecret: config.clientSecret,
+      createSession: async () => {
+        if (config.checkoutUrl) {
+          return { data: { checkoutUrl: config.checkoutUrl } };
+        }
+        return client.createHubtelSession(paymentId, config.clientSecret);
+      },
+      checkStatus: async () => {
+        const { data, error } = config.clientSecret
+          ? await client.confirmPaymentIntent(paymentId, config.clientSecret)
+          : await client.confirmPayment(paymentId);
+        return { status: data?.status, error };
+      },
+      onSuccess: ({ status, checkoutId }) =>
+        config.onSuccess?.({ paymentId, status, checkoutId, psp: 'hubtel' }),
+      onError: (error) => config.onError?.({ ...error }),
+      onClose: () => config.onClose?.(),
     });
+    return;
+  }
+
+  if (config.checkoutUrl) {
+    openHubtelCheckoutUrl(config.checkoutUrl, config.onClose);
+    return;
+  }
+
+  config.onError?.({
+    code: 'HUBTEL_CHECKOUT_URL_REQUIRED',
+    message: 'openHubtelPopup needs a paymentId (and clientSecret) or a Hubtel checkoutUrl.',
+    recoverable: false,
+  });
 }
