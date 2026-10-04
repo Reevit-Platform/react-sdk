@@ -7,7 +7,9 @@ import { join, resolve } from 'node:path';
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
 const dir = mkdtempSync(resolve('node_modules/.reevit-checkout-package-'));
 try {
-  const [archive] = JSON.parse(execFileSync('npm', ['pack', '--cache', join(dir, 'npm-cache'), '--ignore-scripts', '--json', '--pack-destination', dir], { encoding: 'utf8' }));
+  const packed = JSON.parse(execFileSync('npm', ['pack', '--cache', join(dir, 'npm-cache'), '--ignore-scripts', '--json', '--pack-destination', dir], { encoding: 'utf8' }));
+  const [archive] = Array.isArray(packed) ? packed : Object.values(packed);
+  assert.ok(archive?.filename, 'npm pack did not report an archive');
   execFileSync('tar', ['-xzf', join(dir, archive.filename), '-C', dir]);
   symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir');
   const pkg = JSON.parse(readFileSync(join(dir, 'package/package.json'), 'utf8'));
