@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { currencyExponent, toMinorUnits } from '@reevit/core';
 import type { PaymentResult, PaymentError } from '../types';
 import { LoadingState } from '../components/LoadingState';
 
@@ -123,7 +124,7 @@ export function FlutterwaveBridge({
       window.FlutterwaveCheckout({
         public_key: publicKey,
         tx_ref: txRef,
-        amount: amount / 100, // Flutterwave expects amount in major units
+        amount: amount / 10 ** currencyExponent(currency), // Flutterwave expects major units
         currency,
         payment_options: paymentOptions,
         customer: {
@@ -142,7 +143,7 @@ export function FlutterwaveBridge({
             const result: PaymentResult = {
               paymentId: response.transaction_id.toString(),
               reference: response.tx_ref,
-              amount: Math.round(response.amount * 100),
+              amount: toMinorUnits(response.amount, response.currency),
               currency: response.currency,
               paymentMethod: response.payment_type === 'mobilemoney' ? 'mobile_money' : 'card',
               psp: 'flutterwave',

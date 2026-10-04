@@ -45,6 +45,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify packed checkout
+        run: npm run test:package
+
       - name: Verify checked-in dist is up to date
         run: |
           if [ -n "$(git ls-files 'dist/*' 'dist/**')" ]; then

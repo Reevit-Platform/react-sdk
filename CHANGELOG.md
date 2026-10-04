@@ -1,3 +1,10 @@
+# @reevit/react — 0.11.1 (Unreleased)
+
+## Fixed
+
+- Flutterwave checkout converts Reevit minor units using the currency exponent. A 5,012 GHS intent requests 50.12 GHS; a 5,000 XOF intent requests 5,000 XOF.
+- Callback amounts return to minor units using the response currency.
+
 # @reevit/react — 0.11.0 (2026-09-24)
 
 ## 🔒 Security
