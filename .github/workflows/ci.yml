@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify packed checkout
+        run: npm run test:package
+
       - name: Verify dist
         run: |
           test -f dist/index.js || (echo "Build failed - no dist/index.js" && exit 1)

@@ -35,20 +35,20 @@ have to be bumped together in the same release.
 The simplest way to integrate Reevit is using the `ReevitCheckout` component.
 
 ```tsx
-import { ReevitCheckout } from '@reevit/react';
+import { ReevitCheckout, formatAmount } from '@reevit/react';
 import '@reevit/react/styles.css';
 
-function App() {
+function App({ orderId }: { orderId: string }) {
   return (
     <ReevitCheckout
       publicKey="pfk_test_your_key"
       amount={10000} // Amount in smallest unit (e.g., pesewas for GHS)
       currency="GHS"
       email="customer@example.com"
-      idempotencyKey={`order_${Date.now()}`}
+      idempotencyKey={`checkout:${orderId}`}
       onSuccess={(result) => {
         console.log('Payment success!', result);
-        alert(`Payment of ${result.currency} ${result.amount/100} successful!`);
+        alert(`Payment of ${formatAmount(result.amount, result.currency)} successful!`);
       }}
       onError={(error) => {
         console.error('Payment failed:', error.message);
@@ -59,6 +59,11 @@ function App() {
   );
 }
 ```
+
+Persist `orderId` before rendering the checkout. Reuse the same key and payload
+for that order's retries and rerenders; a new order needs a new key. Amounts stay
+in the original currency's minor units. `formatAmount` handles currencies such as
+XOF with zero decimal places and KWD with three; do not divide every amount by 100.
 
 ## Server-created Checkout Sessions
 

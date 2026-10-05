@@ -1,6 +1,6 @@
 {
   "name": "@reevit/react",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Reevit React SDK - Unified Payment Widget",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -20,7 +20,8 @@
     "preview": "vite --config preview/vite.config.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test:package": "npm run build && node scripts/check-packed-package.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
