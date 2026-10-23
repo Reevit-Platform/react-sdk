@@ -139,10 +139,10 @@ export function MomoCodePanel({ charge }: CodeProps) {
         </p>
         <form className="reevit-form reevit-code-form" onSubmit={submit} noValidate>
           <div className="reevit-field">
-            <label htmlFor={id}>{voucher ? 'Voucher code' : 'Code'}</label>
             <div className={charge.codeError ? 'reevit-input reevit-input--invalid' : 'reevit-input'}>
               <input
                 id={id}
+                aria-label={voucher ? 'Voucher code' : 'Code'}
                 className="reevit-mono"
                 type="text"
                 inputMode="numeric"
