@@ -3,7 +3,7 @@
  * Core hook for managing Reevit checkout state and API interactions
  */
 
-import { useCallback, useReducer, useEffect, useRef } from 'react';
+import { useCallback, useReducer, useEffect, useRef, useState } from 'react';
 import type {
   ReevitCheckoutConfig,
   CheckoutState,
@@ -57,9 +57,15 @@ const initialState: ReevitState = {
 
 const DEFAULT_PUBLIC_API_BASE_URL = 'https://api.reevit.io';
 
-/** How long a provider's own "success" waits for the backend to agree before it is not treated as paid. */
-const SETTLE_TIMEOUT_MS = 20_000;
-const SETTLE_INTERVAL_MS = 2_500;
+/**
+ * After the provider reports success the backend can still say `pending` for a while
+ * (webhooks and verification are slow). Keep asking, calmly, for up to two minutes.
+ */
+const CONFIRM_TIMEOUT_MS = 120_000;
+const CONFIRM_INTERVAL_MS = 4_000;
+
+/** `confirming`: the provider said paid, the backend has not agreed yet. `unconfirmed`: it still had not at the deadline. */
+export type Confirmation = 'idle' | 'confirming' | 'unconfirmed';
 
 function buildPaymentLinkError(response: Response, data: any): PaymentError {
   return {
@@ -656,10 +662,18 @@ export function useReevit(options: UseReevitOptions) {
   const settleControllerRef = useRef<AbortController | null>(null);
   useEffect(() => () => settleControllerRef.current?.abort(), []);
 
+  const [confirmation, setConfirmationState] = useState<Confirmation>('idle');
+  const confirmationRef = useRef<Confirmation>('idle');
+  const setConfirmation = useCallback((next: Confirmation) => {
+    confirmationRef.current = next;
+    setConfirmationState(next);
+  }, []);
+
   // Process payment - called after a PSP bridge reports success.
   // The backend decides: only `succeeded` is a paid payment. A provider can say
-  // "done" before its webhook lands, so a still-pending payment is re-checked
-  // for a short while and is never reported as success.
+  // "done" before its webhook lands. While the backend says pending the buyer sees
+  // a calm "Confirming" state with no retry (they may already have been debited),
+  // and the payment is never reported as success until it has succeeded.
   const processPayment = useCallback(
     async (paymentData: Record<string, unknown>) => {
       if (!state.paymentIntent || !state.selectedMethod) {
@@ -672,6 +686,7 @@ export function useReevit(options: UseReevitOptions) {
       settleControllerRef.current = controller;
 
       const fail = (error: PaymentError) => {
+        setConfirmation('idle');
         dispatch({ type: 'PROCESS_ERROR', payload: error });
         onError?.(error);
       };
@@ -699,21 +714,22 @@ export function useReevit(options: UseReevitOptions) {
 
         let confirmed = first.data;
         if (confirmed?.status !== 'succeeded' && !isPaymentFailure(confirmed?.status)) {
+          setConfirmation('confirming');
+          onStateChange?.('confirming');
           const settled = await pollPaymentStatus({
             check: confirm,
             signal: controller.signal,
-            intervalMs: SETTLE_INTERVAL_MS,
-            timeoutMs: SETTLE_TIMEOUT_MS,
+            intervalMs: CONFIRM_INTERVAL_MS,
+            timeoutMs: CONFIRM_TIMEOUT_MS,
           });
           if (settled.kind === 'aborted') return;
           if (settled.kind === 'timeout') {
-            fail({
-              code: 'PAYMENT_NOT_CONFIRMED',
-              message: 'We haven’t received confirmation of this payment yet. Please check with the merchant before paying again.',
-              recoverable: false,
-            });
+            // Not failed, not paid: leave it to the webhook. No retry, no onError, no onSuccess.
+            setConfirmation('unconfirmed');
+            onStateChange?.('pending');
             return;
           }
+          setConfirmation('idle');
           confirmed = settled.data;
         }
 
@@ -751,7 +767,7 @@ export function useReevit(options: UseReevitOptions) {
         });
       }
     },
-    [state.paymentIntent, state.selectedMethod, onSuccess, onError]
+    [state.paymentIntent, state.selectedMethod, onSuccess, onError, onStateChange, setConfirmation]
   );
 
   // Handle PSP bridge success (called by PSP bridge components)
@@ -774,8 +790,9 @@ export function useReevit(options: UseReevitOptions) {
   // Reset checkout
   const reset = useCallback(async () => {
     settleControllerRef.current?.abort();
-    // Cancel the existing payment intent if it exists and is still pending
-    if (state.paymentIntent && state.status !== 'success') {
+    // Cancel the existing payment intent if it exists and is still pending, unless
+    // the provider already said it was paid: that payment must be left to settle.
+    if (state.paymentIntent && state.status !== 'success' && confirmationRef.current === 'idle') {
       try {
         const apiClient = apiClientRef.current;
         if (apiClient) {
@@ -786,16 +803,18 @@ export function useReevit(options: UseReevitOptions) {
       }
     }
 
+    setConfirmation('idle');
     resolvedIntentKeyRef.current = null;
     initRequestIdRef.current += 1;
     dispatch({ type: 'RESET' });
-  }, [state.paymentIntent, state.status]);
+  }, [state.paymentIntent, state.status, setConfirmation]);
 
   // Close checkout
   const close = useCallback(async () => {
     settleControllerRef.current?.abort();
-    // Cancel the payment intent if it exists and is still pending
-    if (state.paymentIntent && state.status !== 'success') {
+    // Cancel the payment intent if it exists and is still pending, unless the
+    // provider already said it was paid: that payment must be left to settle.
+    if (state.paymentIntent && state.status !== 'success' && confirmationRef.current === 'idle') {
       try {
         const apiClient = apiClientRef.current;
         if (apiClient) {
@@ -806,9 +825,10 @@ export function useReevit(options: UseReevitOptions) {
       }
     }
 
+    setConfirmation('idle');
     dispatch({ type: 'CLOSE' });
     onClose?.();
-  }, [onClose, state.paymentIntent, state.status]);
+  }, [onClose, state.paymentIntent, state.status, setConfirmation]);
 
   return {
     // State
@@ -817,6 +837,7 @@ export function useReevit(options: UseReevitOptions) {
     selectedMethod: state.selectedMethod,
     error: state.error,
     result: state.result,
+    confirmation,
 
     // Actions
     initialize,

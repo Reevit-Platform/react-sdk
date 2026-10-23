@@ -15,7 +15,7 @@ import { LoadingState } from './LoadingState';
 import { MethodList, METHOD_LABEL } from './MethodList';
 import { PanelHead } from './PanelHead';
 import { CheckoutShell, type FooterProvider } from './CheckoutShell';
-import { ReceiptPanel, FailurePanel } from './ResultPanels';
+import { ReceiptPanel, FailurePanel, UnconfirmedPanel } from './ResultPanels';
 import { PaystackBridge } from '../bridges/PaystackBridge';
 import { HubtelBridge } from '../bridges/HubtelBridge';
 import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
@@ -65,7 +65,7 @@ const METHOD_ORDER: PaymentMethod[] = ['card', 'mobile_money', 'bank_transfer', 
 const MAX_PROMPT_ATTEMPT = 3;
 
 type Stage = 'list' | 'phone' | 'preparing' | 'bridge';
-type ViewId = 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'receipt' | 'failure';
+type ViewId = 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'confirming' | 'unconfirmed' | 'receipt' | 'failure';
 
 const titleCase = (value: string) => value.replace(/^\w/, (c) => c.toUpperCase());
 
@@ -157,6 +157,7 @@ export function ReevitCheckout({
     selectedMethod,
     error,
     result,
+    confirmation,
     initialize,
     selectMethod,
     processPayment,
@@ -497,6 +498,8 @@ export function ReevitCheckout({
   let view: ViewId;
   if (status === 'success' && result) view = 'receipt';
   else if (showFailure) view = 'failure';
+  else if (confirmation === 'unconfirmed') view = 'unconfirmed';
+  else if (confirmation === 'confirming') view = 'confirming';
   else if (status === 'processing') view = 'processing';
   else if (!paymentIntent) view = 'loading';
   else if (activeStage === 'preparing') view = 'preparing';
@@ -566,6 +569,8 @@ export function ReevitCheckout({
     preparing: `Opening ${pspName}`,
     bridge: `Opening ${pspName}`,
     processing: 'Processing payment',
+    confirming: 'Confirming your payment',
+    unconfirmed: 'Still confirming this payment',
     receipt: 'Payment received',
     failure: 'Payment failed',
   }[view];
@@ -703,6 +708,10 @@ export function ReevitCheckout({
         return <LoadingState title="Preparing checkout" />;
       case 'processing':
         return <LoadingState title="Processing payment" message="Please don’t close this window." />;
+      case 'confirming':
+        return <LoadingState title="Confirming your payment" message="This can take a minute. You don’t need to pay again." />;
+      case 'unconfirmed':
+        return <UnconfirmedPanel onDone={handleClose} />;
       case 'receipt':
         return result ? (
           <ReceiptPanel

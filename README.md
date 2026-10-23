@@ -310,6 +310,10 @@ import { MPesaBridge } from '@reevit/react';
 />
 ```
 
+### Provider says paid, backend still pending
+
+Popup providers can report success before Reevit's own confirmation lands. The checkout then shows "Confirming your payment" (no Try again, closing is allowed and does not cancel the payment) and keeps checking for up to 2 minutes. `onSuccess` fires only on `succeeded`. If it is still pending after 2 minutes the checkout shows "We're still confirming this payment" with Done, calls neither `onSuccess` nor `onError`, and `onStateChange` receives `confirming` then `pending`.
+
 ## Supported PSPs
 
 | Paystack | NG, GH, ZA, KE | Card, Mobile Money, Bank Transfer |
