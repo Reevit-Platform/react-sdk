@@ -112,4 +112,17 @@ describe('direct charge API client', () => {
     const boom = await client(() => json(500, { message: 'x' })).api.resend('p', 's');
     expect(boom.error?.unknownOutcome).toBe(true);
   });
+
+  it('charges a bank transfer with no phone, and "I\u2019ve sent it" is status?check=1 with the secret still in a header', async () => {
+    const { api, fetchMock } = client(() => json(200, { id: 'pay_1', status: 'requires_action' }));
+    await api.charge('cs_1', { method: 'bank_transfer', provider: 'paystack', attempt_token: 'b1' });
+    await api.status('pay_1', 'pfsec_x', { check: true });
+    await api.status('pay_1', 'pfsec_x');
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ method: 'bank_transfer', provider: 'paystack', attempt_token: 'b1' });
+    expect(String(fetchMock.mock.calls[1][0])).toBe('https://api.test/v1/payments/pay_1/status?check=1');
+    expect(String(fetchMock.mock.calls[2][0])).toBe('https://api.test/v1/payments/pay_1/status');
+    expect((fetchMock.mock.calls[1][1]?.headers as Record<string, string>)['X-Reevit-Client-Secret']).toBe('pfsec_x');
+    expect(String(fetchMock.mock.calls[1][0])).not.toContain('pfsec_x');
+  });
 });

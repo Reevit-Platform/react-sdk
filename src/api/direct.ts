@@ -4,7 +4,7 @@
  * The public, key-less routes behind Reevit's own mobile money screens:
  *
  *   POST /v1/checkout/sessions/{session_secret}/charge   start a prompt
- *   GET  /v1/payments/{id}/status                        read the attempt
+ *   GET  /v1/payments/{id}/status                        read the attempt (?check=1: ask the provider now)
  *   POST /v1/payments/{id}/action                        submit an OTP or voucher
  *   POST /v1/payments/{id}/resend                        a fresh prompt
  *
@@ -40,7 +40,20 @@ export interface AttemptNextAction {
   /** RFC 3339. When the payer may ask for another prompt. Absent when the provider cannot. */
   can_resend_at?: string;
   voucher?: { ussd?: string; hint?: string };
-  bank?: Record<string, unknown>;
+  bank?: BankDetails;
+}
+
+/** The account a payer sends a bank transfer to. `account_name` is absent when the provider returns none. */
+export interface BankDetails {
+  bank: string;
+  account_number: string;
+  account_name?: string;
+  /** Minor units: what the payer must send. */
+  amount: number;
+  /** RFC 3339 */
+  expires_at?: string;
+  reference?: string;
+  note?: string;
 }
 
 export type FailureCategory =
@@ -78,9 +91,10 @@ export interface PublicAttempt {
 }
 
 export interface ChargeRequest {
-  method: 'mobile_money';
+  method: 'mobile_money' | 'bank_transfer';
   provider?: string;
-  phone: string;
+  /** Mobile money only: a bank transfer asks the payer for nothing. */
+  phone?: string;
   network?: string;
   /** Names one user action: repeating it replays that attempt and spends no budget. */
   attempt_token: string;
@@ -107,7 +121,11 @@ export type DirectResult<T> = { data: T; error?: undefined } | { data?: undefine
 /** The slice of the API the direct flow uses. Tests substitute this. */
 export interface DirectChargeApi {
   charge(sessionSecret: string, body: ChargeRequest, opts?: { signal?: AbortSignal }): Promise<DirectResult<PublicAttempt>>;
-  status(paymentId: string, clientSecret: string, opts?: { signal?: AbortSignal }): Promise<DirectResult<PublicAttempt>>;
+  status(
+    paymentId: string,
+    clientSecret: string,
+    opts?: { signal?: AbortSignal; /** "I've sent it": the server asks the provider now (still rate limited). */ check?: boolean },
+  ): Promise<DirectResult<PublicAttempt>>;
   action(
     paymentId: string,
     clientSecret: string,
@@ -226,7 +244,7 @@ export function createDirectChargeClient(config: DirectChargeClientConfig = {}):
         timeoutMs: WRITE_TIMEOUT_MS,
       }),
     status: (paymentId, clientSecret, opts) =>
-      send<PublicAttempt>('GET', paymentPath(paymentId, 'status'), {
+      send<PublicAttempt>('GET', paymentPath(paymentId, 'status') + (opts?.check ? '?check=1' : ''), {
         clientSecret,
         signal: opts?.signal,
         timeoutMs: READ_TIMEOUT_MS,

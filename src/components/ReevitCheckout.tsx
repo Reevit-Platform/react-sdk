@@ -11,8 +11,10 @@ import { useEffect, useState, useCallback, useMemo, useRef, createContext, useCo
 import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, CheckoutProviderOption, MethodOption } from '../types';
 import { useReevit } from '../hooks/useReevit';
 import { useDirectCharge, FAILOVER_DONE, type DirectInput } from '../hooks/useDirectCharge';
-import { createDirectChargeClient, type PublicAttempt } from '../api/direct';
+import { useDirectBank } from '../hooks/useDirectBank';
+import { createDirectChargeClient, type BankDetails, type PublicAttempt } from '../api/direct';
 import { MomoWaitPanel, MomoCodePanel, MomoFailurePanel, formatPayerPhone, NETWORK_LABEL } from './DirectMomo';
+import { BankDetailsPanel, BankConfirmingPanel, BankNotSeenPanel, BankFailurePanel } from './DirectBank';
 import { MobileMoneyForm } from './MobileMoneyForm';
 import { LoadingState } from './LoadingState';
 import { MethodList, METHOD_LABEL } from './MethodList';
@@ -67,10 +69,11 @@ const METHOD_ORDER: PaymentMethod[] = ['card', 'mobile_money', 'bank_transfer', 
 /** The backend refuses a checkout-session selection past attempt 3. */
 const MAX_PROMPT_ATTEMPT = 3;
 
-type Stage = 'list' | 'phone' | 'direct' | 'preparing' | 'bridge';
+type Stage = 'list' | 'phone' | 'direct' | 'bank' | 'preparing' | 'bridge';
 type ViewId =
   | 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'confirming' | 'unconfirmed' | 'receipt' | 'failure'
-  | 'momo' | 'momo-wait' | 'momo-code' | 'momo-fail';
+  | 'momo' | 'momo-wait' | 'momo-code' | 'momo-fail'
+  | 'bank-start' | 'bank' | 'bank-conf' | 'bank-miss' | 'bank-fail';
 
 /** A provider that takes a method in Reevit's own screens, with its capabilities. */
 interface DirectSelection {
@@ -269,7 +272,7 @@ export function ReevitCheckout({
    */
   const directFor = useCallback(
     (method: PaymentMethod): DirectSelection | undefined => {
-      if (!sessionSecret || method !== 'mobile_money') return undefined;
+      if (!sessionSecret || (method !== 'mobile_money' && method !== 'bank_transfer')) return undefined;
       const recommended = paymentIntent?.recommendedPsp?.toLowerCase();
       const candidates = providerOptions
         .map((provider) => ({ provider, option: provider.methodOptions?.find((o) => o.method === method && o.flow === 'direct') }))
@@ -279,13 +282,15 @@ export function ReevitCheckout({
     [paymentIntent?.recommendedPsp, providerOptions, sessionSecret]
   );
   const directSelection = useMemo(() => directFor('mobile_money'), [directFor]);
+  const bankSelection = useMemo(() => directFor('bank_transfer'), [directFor]);
 
   // The only method is mobile money: skip the list and ask for the number.
   const soleMethod = methodList.length === 1 ? methodList[0] : null;
   const soleProvider = soleMethod ? providerFor(soleMethod) : undefined;
   const soleDirect = soleMethod === 'mobile_money' && !!directSelection;
+  const soleBank = soleMethod === 'bank_transfer' && !!bankSelection;
   const directPhone = !soleDirect && soleMethod === 'mobile_money' && !!soleProvider?.provider.toLowerCase().includes('mpesa');
-  const activeStage: Stage = stage === 'list' && soleDirect ? 'direct' : stage === 'list' && directPhone ? 'phone' : stage;
+  const activeStage: Stage = stage === 'list' && soleDirect ? 'direct' : stage === 'list' && soleBank ? 'bank' : stage === 'list' && directPhone ? 'phone' : stage;
 
   const directApi = useMemo(() => createDirectChargeClient({ baseUrl: apiBaseUrl }), [apiBaseUrl]);
   /** "MTN MoMo · 024 412 8890", kept for the receipt only; the number is not handed to the merchant. */
@@ -311,7 +316,39 @@ export function ReevitCheckout({
     },
     onFailure: (failure) => onError?.({ code: failure.code, message: failure.message, recoverable: failure.retryable }),
   });
-  const resetCharge = charge.reset;
+  /** "Bank transfer · Wema Bank", kept for the receipt only. */
+  const receiptBankRef = useRef<string | null>(null);
+  const bank = useDirectBank({
+    api: directApi,
+    sessionSecret,
+    provider: bankSelection?.provider.provider ?? '',
+    onSuccess: (attempt: PublicAttempt, details: BankDetails | null) => {
+      receiptBankRef.current = details?.bank ? `Bank transfer · ${details.bank}` : null;
+      completePayment({
+        paymentId: attempt.id,
+        reference: reference || '',
+        amount: attempt.amount,
+        currency: attempt.currency,
+        paymentMethod: 'bank_transfer',
+        psp: bankSelection?.provider.provider ?? attempt.provider_display ?? '',
+        pspReference: attempt.id,
+        status: 'success',
+        metadata: { backend_status: attempt.status, rerouted: attempt.rerouted, receipt_url: attempt.receipt_url },
+      });
+    },
+    onFailure: (failure) => onError?.({ code: failure.code, message: failure.message, recoverable: failure.retryable }),
+  });
+  const resetCharge = useCallback(() => {
+    charge.reset();
+    bank.reset();
+  }, [bank.reset, charge.reset]);
+
+  // Bank transfer asks for nothing from the shopper: the account is requested as soon as the screen opens.
+  const startBank = bank.start;
+  const bankPhase = bank.phase;
+  useEffect(() => {
+    if (isOpen && activeStage === 'bank' && bankPhase === 'idle' && paymentIntent && !!bankSelection) void startBank();
+  }, [activeStage, bankPhase, bankSelection, isOpen, paymentIntent, startBank]);
 
   // Initialize when opened
   useEffect(() => {
@@ -417,6 +454,13 @@ export function ReevitCheckout({
       }
 
       const direct = directFor(method);
+      if (direct && method === 'bank_transfer') {
+        // Reevit's own screens: the account appears at once. A live account is shown again, never replaced.
+        setSelectedProvider(direct.provider.provider);
+        selectMethod(method);
+        setStage('bank');
+        return;
+      }
       if (direct) {
         // Reevit's own screens: the number first, then the prompt. An earlier prompt keeps being watched.
         setSelectedProvider(direct.provider.provider);
@@ -587,6 +631,14 @@ export function ReevitCheckout({
   else if (confirmation === 'confirming') view = 'confirming';
   else if (status === 'processing') view = 'processing';
   else if (!paymentIntent) view = 'loading';
+  else if (activeStage === 'bank') {
+    view =
+      bank.phase === 'confirming' ? 'bank-conf'
+      : bank.phase === 'notSeen' ? 'bank-miss'
+      : bank.phase === 'failed' && bank.failure ? 'bank-fail'
+      : (bank.phase === 'details' || bank.phase === 'expired') && bank.details ? 'bank'
+      : 'bank-start';
+  }
   else if (activeStage === 'direct') {
     view =
       charge.phase === 'waiting' ? 'momo-wait'
@@ -606,12 +658,12 @@ export function ReevitCheckout({
   const directionRef = useRef<{ view: ViewId; direction: 'forward' | 'back' | 'fade' }>({ view: panelView, direction: 'fade' });
   if (directionRef.current.view !== panelView) {
     const from = directionRef.current.view;
-    const isDetail = (v: ViewId) => v === 'phone' || v === 'preparing' || v === 'bridge' || v === 'momo';
-    const isPrompt = (v: ViewId) => v === 'momo-wait' || v === 'momo-code' || v === 'momo-fail';
+    const isDetail = (v: ViewId) => v === 'phone' || v === 'preparing' || v === 'bridge' || v === 'momo' || v === 'bank-start' || v === 'bank';
+    const isPrompt = (v: ViewId) => v === 'momo-wait' || v === 'momo-code' || v === 'momo-fail' || v === 'bank-conf' || v === 'bank-miss' || v === 'bank-fail';
     directionRef.current = {
       view: panelView,
       direction:
-        (panelView === 'list' && (isDetail(from) || isPrompt(from))) || (panelView === 'momo' && isPrompt(from))
+        (panelView === 'list' && (isDetail(from) || isPrompt(from))) || ((panelView === 'momo' || panelView === 'bank') && isPrompt(from))
           ? 'back'
           : isDetail(panelView) && from === 'list' ? 'forward' : 'fade',
     };
@@ -619,7 +671,9 @@ export function ReevitCheckout({
   const direction = directionRef.current.direction;
 
   // A payment is in flight while a provider window is open or the result is being confirmed.
-  const inFlight = view === 'bridge' || view === 'processing' || view === 'momo-wait' || view === 'momo-code';
+  const inFlight =
+    view === 'bridge' || view === 'processing' || view === 'momo-wait' || view === 'momo-code' ||
+    (view === 'bank' && bank.phase !== 'expired') || view === 'bank-conf' || view === 'bank-miss';
 
   const finishReceipt = useCallback(() => {
     if (result) deliverSuccess(result);
@@ -666,6 +720,11 @@ export function ReevitCheckout({
     'momo-wait': 'Waiting for your approval',
     'momo-code': 'Enter your code',
     'momo-fail': charge.failure?.title ?? 'Payment failed',
+    'bank-start': 'Getting account details',
+    bank: bank.phase === 'expired' ? 'Account details expired' : 'Bank transfer',
+    'bank-conf': 'Confirming your transfer',
+    'bank-miss': 'We haven’t seen it yet',
+    'bank-fail': bank.failure?.title ?? 'Payment failed',
     preparing: `Opening ${pspName}`,
     bridge: `Opening ${pspName}`,
     processing: 'Processing payment',
@@ -816,7 +875,7 @@ export function ReevitCheckout({
         return result ? (
           <ReceiptPanel
             reference={result.reference || result.paymentId}
-            method={(result.paymentMethod === 'mobile_money' && receiptMethodRef.current) || METHOD_LABEL[result.paymentMethod] || methodLabel}
+            method={(result.paymentMethod === 'mobile_money' && receiptMethodRef.current) || (result.paymentMethod === 'bank_transfer' && receiptBankRef.current) || METHOD_LABEL[result.paymentMethod] || methodLabel}
             provider={providerOptions.find((p) => p.provider.toLowerCase() === result.psp?.toLowerCase())?.name || titleCase(result.psp || pspName)}
             merchantName={brandName || 'Checkout'}
             orderRef={orderRef}
@@ -882,6 +941,37 @@ export function ReevitCheckout({
           <MomoFailurePanel
             charge={charge}
             failure={charge.failure}
+            canChooseAnother={methodList.length > 1}
+            onChooseAnother={handlePanelBack}
+            onClose={handleClose}
+          />
+        ) : null;
+      case 'bank-start':
+        return (
+          <>
+            <PanelHead title="Bank transfer" onBack={soleBank ? undefined : handlePanelBack} />
+            <LoadingState variant="line" title="Getting account details…" />
+          </>
+        );
+      case 'bank':
+        return bank.details ? (
+          <BankDetailsPanel
+            bank={bank}
+            details={bank.details}
+            currency={displayCurrency}
+            amountText={formatMoney(bank.details.amount || displayAmount, displayCurrency)}
+            onBack={soleBank ? undefined : handlePanelBack}
+          />
+        ) : null;
+      case 'bank-conf':
+        return <BankConfirmingPanel />;
+      case 'bank-miss':
+        return <BankNotSeenPanel bank={bank} />;
+      case 'bank-fail':
+        return bank.failure ? (
+          <BankFailurePanel
+            bank={bank}
+            failure={bank.failure}
             canChooseAnother={methodList.length > 1}
             onChooseAnother={handlePanelBack}
             onClose={handleClose}

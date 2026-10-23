@@ -9,6 +9,9 @@
  *           Reevit's own mobile money screens (a session with `flow: direct`, frozen clock):
  *           momo-form | momo-wait | momo-declined | momo-insufficient | momo-timeout |
  *           momo-otp | momo-voucher | momo-failover | momo-failover-success | momo-mpesa-wait
+ *           Reevit's own bank transfer screens (same session, frozen clock):
+ *           bank-details | bank-no-name | bank-confirming | bank-not-seen | bank-expired
+ *           (&expires=20 sets the seconds left on the details screen; the prototype shots read 0:17 and 0:20)
  * theme:    light | dark
  * pointer:  1 = start closed and open from a real click on the merchant's Pay button
  *           (what screenshots use, so focus rings behave as for a mouse user)
@@ -26,6 +29,7 @@ const params = new URLSearchParams(location.search);
 const state = params.get('state') || 'list';
 /** Reevit's own mobile money screens, driven through a stubbed session + direct charge API. */
 const direct = state.startsWith('momo');
+const bankState = state.startsWith('bank');
 const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
 const provider = (params.get('provider') || (state.startsWith('mpesa') || state === 'momo-mpesa-wait' ? 'mpesa' : state === 'stripe' ? 'stripe' : 'paystack')) as keyof typeof PROVIDERS;
 
@@ -72,12 +76,13 @@ const intentResponse = {
     {
       provider,
       name: cfg.name,
-      methods: provider === 'mpesa' ? ['mobile_money'] : ['card', 'mobile_money'],
+      methods: provider === 'mpesa' ? ['mobile_money'] : ['card', 'mobile_money', 'bank_transfer'],
       method_options: [
         provider === 'mpesa'
           ? { method: 'mobile_money', flow: 'direct', networks: ['mpesa'], needs: ['phone'] }
           : { method: 'mobile_money', flow: 'direct', networks: ['mtn', 'telecel', 'airteltigo'], needs: ['phone', 'network'], voucher_networks: ['telecel'] },
         { method: 'card', flow: 'hosted', networks: [], needs: [] },
+        { method: 'bank_transfer', flow: 'direct', networks: [], needs: [] },
       ],
     },
   ],
@@ -89,7 +94,7 @@ const never = new Promise<Response>(() => {});
 
 // A frozen clock makes the countdown, the bar and the Resend cooldown the same in every shot.
 let clock = Date.parse('2026-10-23T12:00:00Z');
-if (direct) Date.now = () => clock;
+if (direct || bankState) Date.now = () => clock;
 const at = (offsetMs: number) => new Date(clock + offsetMs).toISOString();
 const kesPreview = currency === 'KES';
 
@@ -134,6 +139,30 @@ function directCharge() {
     default: return directView('pay_preview_direct');
   }
 }
+/** What a provider returns for a one-off account; the name is absent for Flutterwave Ghana. */
+const secondsLeft = Number(params.get('expires') || 17);
+function bankView(over: Record<string, unknown> = {}, expiresInMs = secondsLeft * 1000) {
+  const account = {
+    bank: 'Wema Bank',
+    account_number: '7820194552',
+    ...(state === 'bank-no-name' ? {} : { account_name: 'Reevit / Kente & Co.' }),
+    amount,
+    expires_at: at(expiresInMs),
+  };
+  return {
+    id: 'pay_preview_bank',
+    status: 'requires_action',
+    amount,
+    currency,
+    method: 'bank_transfer',
+    provider_display: cfg.name,
+    client_secret: 'pfsec_preview_bank',
+    next_action: { type: 'bank_transfer', expires_at: account.expires_at, bank: account, attempt: { n: 1, max: 3 } },
+    rerouted: false,
+    poll_after_ms: 5000,
+    ...over,
+  };
+}
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
@@ -145,6 +174,16 @@ window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.endsWith('/mpesa')) {
     if (state === 'mpesa-failed') return json({ message: 'The request could not be sent. Try again.' }, 500);
     return json({ checkout_request_id: 'ws_CO_2310202611570001' });
+  }
+  if (bankState) {
+    if (url.includes('/v1/checkout/sessions/') && url.endsWith('/charge')) return json(bankView({}, state === 'bank-expired' ? -1000 : undefined));
+    if (url.includes('/v1/checkout/sessions/')) return json({ id: 'sess', client_secret: 'x', session_secret: 'cs_preview', payment_intent: intentResponse });
+    if (url.includes('/status')) {
+      if (state === 'bank-expired') return json(bankView({ status: 'expired', next_action: undefined, client_secret: undefined, poll_after_ms: 0, failure: { code: 'expired', category: 'timeout', retryable: true, message: 'x' } }));
+      // "Confirming your transfer" stays on screen while the check never answers.
+      if (state === 'bank-confirming' && url.includes('check=1')) return never;
+      return json(bankView({ client_secret: undefined }));
+    }
   }
   if (direct) {
     if (url.includes('/v1/checkout/sessions/') && url.endsWith('/charge')) {
@@ -223,6 +262,15 @@ function useDrive(open: boolean) {
         await wait(60);
         click('[data-reevit="momo-form"] [data-reevit="cta"]');
       }
+      if (bankState) {
+        click('[data-reevit="row"][data-method="bank_transfer"]');
+        await wait(300);
+        if (state === 'bank-confirming' || state === 'bank-not-seen') {
+          click('[data-reevit="bank"] [data-reevit="cta"]');
+          await wait(state === 'bank-not-seen' ? 1300 : 300);
+        }
+        if (state === 'bank-expired') await wait(1500);
+      }
       if (direct) {
         // M-Pesa is the only method, so there is no list to pick from.
         if (state !== 'momo-mpesa-wait') click('[data-reevit="row"][data-method="mobile_money"]');
@@ -279,10 +327,10 @@ function App() {
           currency={currency}
           reference="ORD-24817"
           email="ama.owusu@example.com"
-          sessionSecret={direct ? 'cs_preview' : undefined}
+          sessionSecret={direct || bankState ? 'cs_preview' : undefined}
           phone={provider === 'mpesa' ? '0712345678' : '0244128890'}
           paymentMethods={['card', 'mobile_money', 'bank_transfer']}
-          initialPaymentIntent={state === 'loading' || direct ? undefined : intent}
+          initialPaymentIntent={state === 'loading' || direct || bankState ? undefined : intent}
           successDelayMs={600000}
           theme={{ companyName: 'Kente & Co.', logoUrl: theme === 'dark' ? logoWhite : logoBlack, darkMode: theme === 'dark' }}
         />
