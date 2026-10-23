@@ -37,4 +37,12 @@ describe('checkoutSelectionIdentity', () => {
 
     expect(keys.size).toBe(200_000);
   });
+
+  it('keeps the plain triple stable and separates a number or a retry from it', () => {
+    const plain = checkoutSelectionIdentity('cs_secret_abc', 'mobile_money', 'mpesa');
+    expect(checkoutSelectionIdentity('cs_secret_abc', 'mobile_money', 'mpesa', '')).toBe(plain);
+    expect(checkoutSelectionIdentity('cs_secret_abc', 'mobile_money', 'mpesa', 'p1')).not.toBe(plain);
+    expect(checkoutSelectionIdentity('cs_secret_abc', 'mobile_money', 'mpesa', 'p1:a1'))
+      .not.toBe(checkoutSelectionIdentity('cs_secret_abc', 'mobile_money', 'mpesa', 'p1'));
+  });
 });

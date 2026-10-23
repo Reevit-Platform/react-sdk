@@ -547,11 +547,8 @@ describe('ReevitCheckout M-Pesa', () => {
     vi.unstubAllGlobals();
   });
 
-  it('asks for the number when M-Pesa is the only method and sends the STK push after Pay', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) : {};
-      return new Response(JSON.stringify(body.phone_number ? { checkout_request_id: 'ws_CO_1' } : {}), { status: 200 });
-    });
+  it('asks for the number when M-Pesa is the only method, then waits for the approval (the push is sent server-side)', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ status: 'pending' }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -576,8 +573,7 @@ describe('ReevitCheckout M-Pesa', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pay KES 755.00' }));
 
     await screen.findByText('Approve on your phone');
-    const stk = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/mpesa'));
-    expect(JSON.parse(String(stk?.[1]?.body))).toMatchObject({ phone_number: '254712345678', currency: 'KES', amount: 75500 });
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/mpesa'))).toBe(false);
   });
 
   it('rejects a number that is not a Kenyan mobile', () => {
@@ -664,5 +660,72 @@ describe('MobileMoneyForm (Ghana)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'MTN' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pay GHS 755.00' }));
     expect(onSubmit).toHaveBeenCalledWith({ phone: '0244128890', network: 'mtn' });
+  });
+});
+
+describe('ReevitCheckout never treats a pending payment as paid', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete window.PaystackPop;
+  });
+
+  async function providerSaysPaid(confirm: (poll: number) => unknown) {
+    const { resumeTransaction } = installPaystackBridge();
+    let poll = 0;
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(confirm(++poll)), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    render(
+      <ReevitCheckout
+        isOpen
+        publicKey="pfk_test"
+        paymentMethods={['card']}
+        successDelayMs={0}
+        initialPaymentIntent={mockIntent([{ provider: 'paystack', name: 'Paystack', methods: ['card'] }])}
+        onSuccess={onSuccess}
+        onError={onError}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    resumeTransaction.mock.calls[0][1].onSuccess({ reference: 'ref_1', trans: '1', status: 'success', message: 'ok', transaction: 't', trxref: 'ref_1' });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    return { onSuccess, onError, fetchMock };
+  }
+
+  it('keeps checking while the backend says pending, and succeeds once it says succeeded', async () => {
+    const { onSuccess } = await providerSaysPaid((poll) => ({ id: 'pay_mock_1', status: poll >= 3 ? 'succeeded' : 'pending' }));
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(onSuccess).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSuccess.mock.calls[0][0]).toMatchObject({ status: 'success' });
+  });
+
+  it('reports an error, not success, when the backend is still pending after the wait', async () => {
+    const { onSuccess, onError } = await providerSaysPaid(() => ({ id: 'pay_mock_1', status: 'pending' }));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(25_000); });
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAYMENT_NOT_CONFIRMED' }));
+    expect(document.querySelector('[data-reevit="failure"]')).not.toBeNull();
+  });
+
+  it('shows the failure panel, not a receipt, when the backend says the payment failed', async () => {
+    const { onSuccess, onError } = await providerSaysPaid(() => ({ id: 'pay_mock_1', status: 'failed' }));
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAYMENT_FAILED' }));
+    expect(document.querySelector('[data-reevit="failure"]')).not.toBeNull();
   });
 });
