@@ -547,11 +547,8 @@ describe('ReevitCheckout M-Pesa', () => {
     vi.unstubAllGlobals();
   });
 
-  it('asks for the number when M-Pesa is the only method and sends the STK push after Pay', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) : {};
-      return new Response(JSON.stringify(body.phone_number ? { checkout_request_id: 'ws_CO_1' } : {}), { status: 200 });
-    });
+  it('asks for the number when M-Pesa is the only method, then waits for the approval (the push is sent server-side)', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ status: 'pending' }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -576,8 +573,7 @@ describe('ReevitCheckout M-Pesa', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pay KES 755.00' }));
 
     await screen.findByText('Approve on your phone');
-    const stk = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/mpesa'));
-    expect(JSON.parse(String(stk?.[1]?.body))).toMatchObject({ phone_number: '254712345678', currency: 'KES', amount: 75500 });
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/mpesa'))).toBe(false);
   });
 
   it('rejects a number that is not a Kenyan mobile', () => {
@@ -664,5 +660,142 @@ describe('MobileMoneyForm (Ghana)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'MTN' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pay GHS 755.00' }));
     expect(onSubmit).toHaveBeenCalledWith({ phone: '0244128890', network: 'mtn' });
+  });
+});
+
+describe('ReevitCheckout never treats a pending payment as paid', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete window.PaystackPop;
+  });
+
+  async function providerSaysPaid(confirm: (poll: number) => unknown) {
+    const { resumeTransaction } = installPaystackBridge();
+    let poll = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (!String(input).includes('/confirm-intent')) return new Response('{}', { status: 200 });
+      const out = confirm(++poll);
+      if (out instanceof Error) throw out;
+      return out instanceof Response ? out : new Response(JSON.stringify(out), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    const onStateChange = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <ReevitCheckout
+        isOpen
+        publicKey="pfk_test"
+        paymentMethods={['card']}
+        successDelayMs={0}
+        initialPaymentIntent={mockIntent([{ provider: 'paystack', name: 'Paystack', methods: ['card'] }])}
+        onSuccess={onSuccess}
+        onError={onError}
+        onStateChange={onStateChange}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    resumeTransaction.mock.calls[0][1].onSuccess({ reference: 'ref_1', trans: '1', status: 'success', message: 'ok', transaction: 't', trxref: 'ref_1' });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    return { onSuccess, onError, onStateChange, onOpenChange, fetchMock };
+  }
+
+  const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
+  it('shows a calm Confirming state with no Try again, keeps polling, and succeeds once it says succeeded', async () => {
+    const { onSuccess, onError, onStateChange, fetchMock } = await providerSaysPaid((poll) => ({ id: 'pay_mock_1', status: poll >= 4 ? 'succeeded' : 'pending' }));
+
+    expect(screen.getByText('Confirming your payment')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(document.querySelector('[data-reevit="failure"]')).toBeNull();
+    expect(onStateChange).toHaveBeenCalledWith('confirming');
+
+    await advance(4000);
+    await advance(4000);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    await advance(4000);
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSuccess.mock.calls[0][0]).toMatchObject({ status: 'success' });
+    expect(onError).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/confirm-intent')).length).toBe(4);
+  });
+
+
+  const NON_DEFINITIVE: Array<[string, (poll: number) => unknown]> = [
+    ['a 503', (poll) => (poll === 1 ? new Response('{"message":"down"}', { status: 503 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['a 429', (poll) => (poll === 1 ? new Response('{}', { status: 429 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['a network error', (poll) => (poll === 1 ? new TypeError('Failed to fetch') : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['an unparseable answer', (poll) => (poll === 1 ? new Response('<html>bad gateway</html>', { status: 200 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+  ];
+
+  it.each(NON_DEFINITIVE)('keeps confirming, with no Try again, when the first check is %s', async (_name, respond) => {
+    const { onSuccess, onError } = await providerSaysPaid(respond);
+
+    expect(screen.getByText('Confirming your payment')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(document.querySelector('[data-reevit="failure"]')).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+
+    await advance(16_000);
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('shows the failure panel when the first check is a definitive decline', async () => {
+    const { onSuccess, onError } = await providerSaysPaid(() => new Response('{"message":"Card declined"}', { status: 402 }));
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-reevit="failure"]')).not.toBeNull();
+    expect(screen.queryByText('Confirming your payment')).toBeNull();
+  });
+
+  it('can be closed while confirming, without cancelling the payment or asking to stay', async () => {
+    const { onSuccess, onOpenChange, fetchMock } = await providerSaysPaid(() => ({ id: 'pay_mock_1', status: 'pending' }));
+
+    fireEvent.click(screen.getByLabelText('Close checkout'));
+    await advance(0);
+
+    expect(document.querySelector('[data-reevit="leave"]')).toBeNull();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/cancel'))).toBe(false);
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('at the deadline shows a non-retry still-confirming panel and calls neither onSuccess nor onError', async () => {
+    const { onSuccess, onError, onStateChange, onOpenChange } = await providerSaysPaid(() => ({ id: 'pay_mock_1', status: 'pending' }));
+
+    await advance(119_000);
+    expect(screen.getByText('Confirming your payment')).toBeTruthy();
+    await advance(6_000);
+
+    expect(screen.getByText('We’re still confirming this payment')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onStateChange).toHaveBeenCalledWith('pending');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('shows the failure panel when the backend says the payment failed', async () => {
+    const { onSuccess, onError } = await providerSaysPaid(() => ({ id: 'pay_mock_1', status: 'failed' }));
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAYMENT_FAILED' }));
+    expect(document.querySelector('[data-reevit="failure"]')).not.toBeNull();
   });
 });

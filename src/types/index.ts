@@ -82,7 +82,11 @@ export type CheckoutState =
   | 'processing'
   | 'success'
   | 'failed'
-  | 'closed';
+  | 'closed'
+  /** The provider reported success; waiting for the backend to confirm it. */
+  | 'confirming'
+  /** Still unconfirmed after two minutes. Neither paid nor failed. */
+  | 'pending';
 
 // Payment result after successful payment
 export interface PaymentResult {

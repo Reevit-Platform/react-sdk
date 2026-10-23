@@ -15,7 +15,7 @@ import { LoadingState } from './LoadingState';
 import { MethodList, METHOD_LABEL } from './MethodList';
 import { PanelHead } from './PanelHead';
 import { CheckoutShell, type FooterProvider } from './CheckoutShell';
-import { ReceiptPanel, FailurePanel } from './ResultPanels';
+import { ReceiptPanel, FailurePanel, UnconfirmedPanel } from './ResultPanels';
 import { PaystackBridge } from '../bridges/PaystackBridge';
 import { HubtelBridge } from '../bridges/HubtelBridge';
 import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
@@ -61,8 +61,11 @@ const PROVIDER_FOOTER: Record<string, { src: string | undefined; kind: 'icon' | 
 /** Order the method list is shown in. */
 const METHOD_ORDER: PaymentMethod[] = ['card', 'mobile_money', 'bank_transfer', 'apple_pay', 'google_pay'];
 
+/** The backend refuses a checkout-session selection past attempt 3. */
+const MAX_PROMPT_ATTEMPT = 3;
+
 type Stage = 'list' | 'phone' | 'preparing' | 'bridge';
-type ViewId = 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'receipt' | 'failure';
+type ViewId = 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'confirming' | 'unconfirmed' | 'receipt' | 'failure';
 
 const titleCase = (value: string) => value.replace(/^\w/, (c) => c.toUpperCase());
 
@@ -120,6 +123,12 @@ export function ReevitCheckout({
   const successDeliveredRef = useRef(false);
   /** Guards double taps while an intent is being created. */
   const pickingRef = useRef(false);
+  /**
+   * M-Pesa prompts sent in this checkout. The first is attempt 0; every later one
+   * (a retry, or a corrected number) is a fresh intent, so it sends a fresh prompt
+   * instead of replaying the failed one. The backend allows attempts 0 to 3.
+   */
+  const promptsSentRef = useRef(0);
   /** Bumped when the shopper backs out, so a stale intent response cannot reopen a bridge. */
   const pickTokenRef = useRef(0);
 
@@ -148,6 +157,7 @@ export function ReevitCheckout({
     selectedMethod,
     error,
     result,
+    confirmation,
     initialize,
     selectMethod,
     processPayment,
@@ -298,7 +308,7 @@ export function ReevitCheckout({
    * to card even when the shopper picked Mobile Money.
    */
   const proceed = useCallback(
-    async (method: PaymentMethod, provider: CheckoutProviderOption) => {
+    async (method: PaymentMethod, provider: CheckoutProviderOption, buyer?: { phone: string; attempt: number }) => {
       if (pickingRef.current) return;
       pickingRef.current = true;
       const token = ++pickTokenRef.current;
@@ -309,7 +319,11 @@ export function ReevitCheckout({
 
       try {
         if (!initialPaymentIntent) {
-          const intent = await initialize(method, { allowedProviders: [provider.provider] });
+          const intent = await initialize(method, {
+            allowedProviders: [provider.provider],
+            phone: buyer?.phone,
+            attempt: buyer?.attempt,
+          });
           if (token !== pickTokenRef.current) return;
           if (!intent) {
             setStage('list');
@@ -356,10 +370,20 @@ export function ReevitCheckout({
     (data: MobileMoneyFormData) => {
       const provider = providerFor('mobile_money');
       if (!provider) return;
+      const attempt = promptsSentRef.current;
+      if (attempt > MAX_PROMPT_ATTEMPT) {
+        onError?.({
+          code: 'TOO_MANY_ATTEMPTS',
+          message: 'Too many attempts. Please close this window and start again.',
+          recoverable: false,
+        });
+        return;
+      }
+      promptsSentRef.current += 1;
       setMomoData(data);
-      void proceed('mobile_money', provider);
+      void proceed('mobile_money', provider, { phone: data.phone, attempt });
     },
-    [providerFor, proceed]
+    [onError, providerFor, proceed]
   );
 
   // Handle PSP callback
@@ -474,6 +498,8 @@ export function ReevitCheckout({
   let view: ViewId;
   if (status === 'success' && result) view = 'receipt';
   else if (showFailure) view = 'failure';
+  else if (confirmation === 'unconfirmed') view = 'unconfirmed';
+  else if (confirmation === 'confirming') view = 'confirming';
   else if (status === 'processing') view = 'processing';
   else if (!paymentIntent) view = 'loading';
   else if (activeStage === 'preparing') view = 'preparing';
@@ -543,6 +569,8 @@ export function ReevitCheckout({
     preparing: `Opening ${pspName}`,
     bridge: `Opening ${pspName}`,
     processing: 'Processing payment',
+    confirming: 'Confirming your payment',
+    unconfirmed: 'Still confirming this payment',
     receipt: 'Payment received',
     failure: 'Payment failed',
   }[view];
@@ -627,17 +655,18 @@ export function ReevitCheckout({
       case 'mpesa':
         return (
           <MPesaBridge
-            apiEndpoint={`${apiBaseUrl || 'https://api.reevit.io'}/v1/payments/${paymentIntent?.id}/mpesa`}
+            // A new payment is a new prompt: start its poll from scratch.
+            key={paymentIntent?.id}
+            paymentId={paymentIntent?.id || ''}
+            clientSecret={paymentIntent?.clientSecret}
+            publicKey={publicKey}
+            apiBaseUrl={apiBaseUrl}
             phoneNumber={momoData?.phone || phone || ''}
-            amount={displayAmount}
-            currency={displayCurrency}
-            reference={paymentIntent?.reference || reference || `mpesa_${Date.now()}`}
-            description={`Payment ${paymentIntent?.reference || reference || ''}`}
-            headers={{ 'x-reevit-public-key': publicKey || '' }}
-            autoStart
+            reference={paymentIntent?.reference || reference}
             onChangeNumber={() => setStage('phone')}
+            onRetry={momoData ? () => handleMomoSubmit(momoData) : undefined}
             onSuccess={handlePSPSuccess}
-            // The bridge shows its own retry panel, so only report the failure.
+            // The bridge shows its own failure panel, so only report the failure.
             onError={(err) => onError?.(err as PaymentError)}
           />
         );
@@ -679,6 +708,10 @@ export function ReevitCheckout({
         return <LoadingState title="Preparing checkout" />;
       case 'processing':
         return <LoadingState title="Processing payment" message="Please don’t close this window." />;
+      case 'confirming':
+        return <LoadingState title="Confirming your payment" message="This can take a minute. You don’t need to pay again." />;
+      case 'unconfirmed':
+        return <UnconfirmedPanel onDone={handleClose} />;
       case 'receipt':
         return result ? (
           <ReceiptPanel

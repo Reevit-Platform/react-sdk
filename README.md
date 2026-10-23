@@ -293,41 +293,26 @@ import { MonnifyBridge } from '@reevit/react';
 
 ### M-Pesa (Kenya/Tanzania)
 
-M-Pesa uses STK Push - the customer receives a prompt on their phone to authorize the payment.
+M-Pesa uses STK Push: the customer approves a prompt on their phone. `ReevitCheckout` asks for the number, creates the payment with it (that is what sends the prompt), then waits. It checks the payment every 4 seconds and finishes only when the payment has `succeeded` or has failed, or after 2 minutes with no approval.
+
+If you build your own screen, render `MPesaBridge` for a payment that already exists. It does not send the prompt, it only waits for the result.
 
 ```tsx
-import { MPesaBridge, useMPesaStatusPolling } from '@reevit/react';
+import { MPesaBridge } from '@reevit/react';
 
-function MpesaPayment() {
-  const [checkoutId, setCheckoutId] = useState(null);
-  
-  const { startPolling } = useMPesaStatusPolling(
-    '/api/mpesa/status',
-    checkoutId,
-    {
-      onSuccess: (result) => console.log('Paid:', result.transactionId),
-      onFailed: (err) => console.error(err.message),
-      onTimeout: () => console.log('Timed out'),
-    }
-  );
-
-  return (
-    <MPesaBridge
-      apiEndpoint="/api/mpesa/stk-push"
-      phoneNumber="254712345678"
-      amount={500}
-      currency="KES"
-      reference="TXN_12345"
-      onInitiated={(id) => {
-        setCheckoutId(id);
-        startPolling();
-      }}
-      onSuccess={(result) => console.log('Paid!')}
-      onError={(err) => console.error(err.message)}
-    />
-  );
-}
+<MPesaBridge
+  paymentId={intent.id}
+  clientSecret={intent.clientSecret}
+  phoneNumber="254712345678"
+  onSuccess={(result) => console.log('Paid', result.pspReference)}
+  onError={(err) => console.error(err.code, err.message)}
+  onRetry={() => createAnotherPayment()}
+/>
 ```
+
+### Provider says paid, backend still pending
+
+Popup providers can report success before Reevit's own confirmation lands. The checkout then shows "Confirming your payment" (no Try again, closing is allowed and does not cancel the payment) and keeps checking for up to 2 minutes. `onSuccess` fires only on `succeeded`. If it is still pending after 2 minutes the checkout shows "We're still confirming this payment" with Done, calls neither `onSuccess` nor `onError`, and `onStateChange` receives `confirming` then `pending`.
 
 ## Supported PSPs
 
