@@ -178,12 +178,29 @@ export interface PSPConfig {
   supportedCurrencies: string[];
 }
 
+/**
+ * How a provider takes one payment method. `direct` means Reevit's own screens
+ * collect the number and drive the prompt; `hosted` means the provider's window.
+ */
+export interface MethodOption {
+  method: PaymentMethod;
+  flow: 'direct' | 'hosted';
+  /** Mobile money networks the provider accepts (`mtn`, `telecel`, `airteltigo`, `mpesa`). */
+  networks: string[];
+  /** What the shopper must supply: `phone`, `network`, `voucher`. */
+  needs: string[];
+  /** Networks that need a voucher or OTP before the prompt completes. */
+  voucherNetworks: string[];
+}
+
 // Checkout provider options returned by the API
 export interface CheckoutProviderOption {
   provider: string;
   name: string;
   methods: PaymentMethod[];
   countries?: string[];
+  /** Per-method flow and capabilities. Absent on older backends: treat every method as hosted. */
+  methodOptions?: MethodOption[];
   /** Brand colors for selected state styling */
   branding?: {
     /** Background color when selected */

@@ -181,6 +181,7 @@
 .reevit-cta:focus-visible, .reevit-cta-secondary:focus-visible { outline-offset: 3px; border-radius: var(--rv-r-pill); }
 .reevit-link { font-size: 13px; font-weight: 500; color: var(--rv-fg2); text-decoration: underline; text-underline-offset: 3px; }
 .reevit-link:hover { color: var(--rv-fg); }
+.reevit-link:disabled { color: var(--rv-fg3); cursor: default; }
 .reevit-links { display: flex; justify-content: center; gap: 20px; margin-top: 18px; flex-wrap: wrap; }
 .reevit-spin { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rv-ln); border-top-color: var(--rv-fg); animation: reevit-l-spin 1s linear infinite; flex: none; }
 .reevit-spin--lg { width: 22px; height: 22px; margin-bottom: 18px; }
@@ -190,6 +191,15 @@
 .reevit-wait, .reevit-processing { display: flex; flex-direction: column; align-items: flex-start; }
 .reevit-opening { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 14px; color: var(--rv-fg2); }
 .reevit-status { margin: 16px 0 0; min-height: 22px; font-size: 14px; color: var(--rv-fg2); }
+.reevit-wait .reevit-cta { margin-top: 12px; }
+.reevit-countdown { width: 100%; margin-top: 22px; }
+.reevit-countdown .reevit-mono { font-size: 26px; font-weight: 500; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.reevit-bar { height: 2px; margin-top: 12px; background: var(--rv-ln); border-radius: 2px; overflow: hidden; }
+.reevit-bar i { display: block; height: 100%; background: var(--rv-fg); transform-origin: left; transition: transform .25s linear; }
+.reevit-note { margin: 14px 0 0; width: 100%; font-size: 13px; line-height: 1.5; color: var(--rv-fg3); text-align: left; }
+.reevit-code-form { margin-top: 20px; }
+.reevit-code-form .reevit-input input { letter-spacing: .24em; text-align: left; }
+.reevit-code-form .reevit-input input::placeholder { letter-spacing: .24em; }
 
 /* results */
 .reevit-result { display: flex; flex-direction: column; align-items: flex-start; }
@@ -203,6 +213,9 @@
 .reevit-receipt dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .reevit-receipt dd.reevit-mono { font-size: 12.5px; }
 .reevit-result .reevit-cta { margin-top: 16px; }
+.reevit-result--prompt .reevit-cta { margin-top: 24px; }
+.reevit-result--prompt .reevit-links { align-self: stretch; }
+.reevit-result--prompt .reevit-status { margin-top: 12px; }
 
 /* stripe */
 .reevit-stripe-bridge { display: flex; flex-direction: column; }

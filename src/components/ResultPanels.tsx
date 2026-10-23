@@ -11,6 +11,8 @@ interface ReceiptPanelProps {
   merchantName: string;
   orderRef?: string;
   amountText: string;
+  /** One quiet line under the receipt, e.g. that a second provider took the payment. */
+  note?: string;
   onDone: () => void;
 }
 
@@ -20,7 +22,7 @@ const escapeHtml = (value: string) =>
 const formatDate = (date: Date) =>
   date.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-export function ReceiptPanel({ reference, method, provider, merchantName, orderRef, amountText, onDone }: ReceiptPanelProps) {
+export function ReceiptPanel({ reference, method, provider, merchantName, orderRef, amountText, note, onDone }: ReceiptPanelProps) {
   // Frozen at first render so the receipt time never changes while it is open.
   const [paidAt] = useState(() => formatDate(new Date()));
 
@@ -59,6 +61,7 @@ export function ReceiptPanel({ reference, method, provider, merchantName, orderR
         <div><dt>Provider</dt><dd>{provider}</dd></div>
         <div><dt>Date</dt><dd className="reevit-mono">{paidAt}</dd></div>
       </dl>
+      {note && <p className="reevit-note" data-reevit="note">{note}</p>}
       <button type="button" className="reevit-cta" data-reevit="done" data-first="" onClick={onDone}>Done</button>
       <button type="button" className="reevit-cta-secondary" data-reevit="download" onClick={download}>Download receipt</button>
     </div>

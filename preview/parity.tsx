@@ -5,7 +5,10 @@
  *   /parity.html?state=list&theme=light&provider=paystack
  *
  * state:    list | opening | stripe | mpesa-phone | mpesa-waiting | mpesa-failed |
- *           loading | processing | failure | receipt | confirm
+ *           loading | processing | failure | receipt | confirm |
+ *           Reevit's own mobile money screens (a session with `flow: direct`, frozen clock):
+ *           momo-form | momo-wait | momo-declined | momo-insufficient | momo-timeout |
+ *           momo-otp | momo-voucher | momo-failover | momo-failover-success | momo-mpesa-wait
  * theme:    light | dark
  * pointer:  1 = start closed and open from a real click on the merchant's Pay button
  *           (what screenshots use, so focus rings behave as for a mouse user)
@@ -21,8 +24,10 @@ import logoWhite from './img/logo-short-white.png';
 
 const params = new URLSearchParams(location.search);
 const state = params.get('state') || 'list';
+/** Reevit's own mobile money screens, driven through a stubbed session + direct charge API. */
+const direct = state.startsWith('momo');
 const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
-const provider = (params.get('provider') || (state.startsWith('mpesa') ? 'mpesa' : state === 'stripe' ? 'stripe' : 'paystack')) as keyof typeof PROVIDERS;
+const provider = (params.get('provider') || (state.startsWith('mpesa') || state === 'momo-mpesa-wait' ? 'mpesa' : state === 'stripe' ? 'stripe' : 'paystack')) as keyof typeof PROVIDERS;
 
 // Mirrors the backend's default provider -> method map.
 const PROVIDERS = {
@@ -50,9 +55,85 @@ const intent: PaymentIntent = {
   availableProviders: [{ provider, name: cfg.name, methods: [...cfg.methods] as PaymentMethod[] }],
 };
 
+// What `GET /v1/checkout/sessions/{secret}` answers: the original payment, with per-method flow.
+const intentResponse = {
+  id: 'pay_preview_session',
+  org_id: 'org_preview',
+  connection_id: 'conn_preview',
+  provider,
+  status: 'pending',
+  client_secret: 'pfsec_session',
+  amount,
+  currency,
+  fee_amount: 0,
+  fee_currency: currency,
+  net_amount: amount,
+  available_psps: [
+    {
+      provider,
+      name: cfg.name,
+      methods: provider === 'mpesa' ? ['mobile_money'] : ['card', 'mobile_money'],
+      method_options: [
+        provider === 'mpesa'
+          ? { method: 'mobile_money', flow: 'direct', networks: ['mpesa'], needs: ['phone'] }
+          : { method: 'mobile_money', flow: 'direct', networks: ['mtn', 'telecel', 'airteltigo'], needs: ['phone', 'network'], voucher_networks: ['telecel'] },
+        { method: 'card', flow: 'hosted', networks: [], needs: [] },
+      ],
+    },
+  ],
+};
+
 // ---- stubs (preview only) ----------------------------------------------------------------------
 
 const never = new Promise<Response>(() => {});
+
+// A frozen clock makes the countdown, the bar and the Resend cooldown the same in every shot.
+let clock = Date.parse('2026-10-23T12:00:00Z');
+if (direct) Date.now = () => clock;
+const at = (offsetMs: number) => new Date(clock + offsetMs).toISOString();
+const kesPreview = currency === 'KES';
+
+function directView(id: string, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    status: 'pending',
+    amount,
+    currency,
+    method: 'mobile_money',
+    provider_display: cfg.name,
+    client_secret: 'pfsec_preview',
+    next_action: {
+      type: 'mobile_money_prompt',
+      network: kesPreview ? 'mpesa' : 'mtn',
+      phone_masked: kesPreview ? '+254 712 ••• 678' : '024 ••• 8890',
+      // The prototype's fast mode runs a 12 s window.
+      expires_at: at(12_000),
+      attempt: { n: 1, max: 3 },
+      can_resend_at: at(-1000),
+    },
+    rerouted: false,
+    poll_after_ms: 2000,
+    ...over,
+  };
+}
+
+const failedDirect = (code: string, category: string) =>
+  directView('pay_preview_direct', { status: 'failed', next_action: undefined, poll_after_ms: 0, failure: { code, category, retryable: true, message: 'server wording' } });
+
+function directCharge() {
+  switch (state) {
+    case 'momo-declined': return failedDirect('not_approved', 'not_approved');
+    case 'momo-insufficient': return failedDirect('insufficient_funds', 'insufficient_funds');
+    case 'momo-otp':
+      return directView('pay_preview_direct', { status: 'requires_action', next_action: { type: 'otp', network: 'mtn', phone_masked: '024 ••• 8890', expires_at: at(120_000), attempt: { n: 1, max: 3 } } });
+    case 'momo-voucher':
+      return directView('pay_preview_direct', { status: 'requires_action', next_action: { type: 'voucher', network: 'telecel', phone_masked: '020 ••• 8890', expires_at: at(120_000), attempt: { n: 1, max: 3 }, voucher: { ussd: '*110#' } } });
+    case 'momo-failover': return directView('pay_preview_direct', { rerouted: true });
+    case 'momo-failover-success': return directView('pay_preview_direct', { status: 'succeeded', next_action: undefined, poll_after_ms: 0, rerouted: true });
+    case 'momo-timeout': return directView('pay_preview_direct', { next_action: { ...directView('x').next_action, expires_at: at(400) } });
+    default: return directView('pay_preview_direct');
+  }
+}
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
@@ -64,6 +145,15 @@ window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.endsWith('/mpesa')) {
     if (state === 'mpesa-failed') return json({ message: 'The request could not be sent. Try again.' }, 500);
     return json({ checkout_request_id: 'ws_CO_2310202611570001' });
+  }
+  if (direct) {
+    if (url.includes('/v1/checkout/sessions/') && url.endsWith('/charge')) {
+      // One second and three quarters into the window: "0:11" with the bar where the prototype shot has it.
+      if (state === 'momo-wait' || state === 'momo-failover' || state === 'momo-mpesa-wait') setTimeout(() => { clock += 1750; }, 80);
+      return json(directCharge());
+    }
+    if (url.includes('/v1/checkout/sessions/')) return json({ id: 'sess', client_secret: 'x', session_secret: 'cs_preview', payment_intent: intentResponse });
+    if (url.endsWith('/status')) return json(directView('pay_preview_direct', { client_secret: undefined }));
   }
   if (state === 'loading') return never;
   void init;
@@ -133,6 +223,22 @@ function useDrive(open: boolean) {
         await wait(60);
         click('[data-reevit="momo-form"] [data-reevit="cta"]');
       }
+      if (direct) {
+        // M-Pesa is the only method, so there is no list to pick from.
+        if (state !== 'momo-mpesa-wait') click('[data-reevit="row"][data-method="mobile_money"]');
+        await wait(120);
+        if (state === 'momo-voucher') {
+          const input = $<HTMLInputElement>('[data-reevit="momo-form"] input');
+          if (input) {
+            const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+            set.call(input, '0201234567');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          await wait(60);
+        }
+        if (state !== 'momo-form') click('[data-reevit="momo-form"] [data-reevit="cta"]');
+        await wait(state === 'momo-timeout' ? 2200 : 500);
+      }
       document.documentElement.dataset.ready = state;
     })();
   }, [open]);
@@ -173,9 +279,10 @@ function App() {
           currency={currency}
           reference="ORD-24817"
           email="ama.owusu@example.com"
+          sessionSecret={direct ? 'cs_preview' : undefined}
           phone={provider === 'mpesa' ? '0712345678' : '0244128890'}
           paymentMethods={['card', 'mobile_money', 'bank_transfer']}
-          initialPaymentIntent={state === 'loading' ? undefined : intent}
+          initialPaymentIntent={state === 'loading' || direct ? undefined : intent}
           successDelayMs={600000}
           theme={{ companyName: 'Kente & Co.', logoUrl: theme === 'dark' ? logoWhite : logoBlack, darkMode: theme === 'dark' }}
         />
