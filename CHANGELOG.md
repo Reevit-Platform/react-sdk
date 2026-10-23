@@ -1,9 +1,66 @@
-# @reevit/react — 0.11.1 (Unreleased)
+# @reevit/react — 0.12.0 (Unreleased)
+
+## ✨ New Ledger checkout
+
+`ReevitCheckout` has a new interface: a calm, monochrome dialog with a single
+list of payment methods, the merchant name and logo, the amount and order
+reference up top, and a "Secured by Reevit" footer showing the provider that
+will take the payment. On screens 480px and narrower it is a bottom sheet.
+
+- **Reevit picks the processor.** The processor picker is gone. The method list
+  is the union of the methods across your connected providers (Card, Mobile
+  money, Bank transfer, Apple Pay, Google Pay, in that order). Tapping a method
+  routes to the recommended provider if it supports it, otherwise to the first
+  connected provider that does. Hubtel is still limited to card and mobile
+  money, and `paymentMethods` still filters the list.
+- **Card, bank and wallet details stay in the provider's own window.** After the
+  tap the dialog shows the method title with a back chevron and an "Opening
+  Paystack…" line while the provider window is open. Closing that window returns
+  to the list. Stripe's Payment Element renders inside the dialog, styled to match.
+- **M-Pesa** asks for the number on its own screen (+254, no network choice) and
+  sends the STK push when the shopper taps Pay. `MPesaBridge` gains `autoStart`
+  and `onChangeNumber`.
+- **Receipt** shows reference, method, provider and date, with **Done** and
+  **Download receipt**. Done (or closing the receipt) delivers `onSuccess` once
+  and closes; the `successDelayMs` auto-close still works and never delivers it
+  twice. Closing the receipt before the delay used to drop `onSuccess`; it now
+  delivers it.
+- **Failures** show a plain panel with the message and **Try again**, including
+  provider-window errors that used to return silently to the list.
+- **Leaving mid-payment** (close, scrim or Esc while a provider window is open or
+  a payment is being confirmed) asks "Leave checkout?" first.
+- **Accessibility.** `role="dialog"` with `aria-modal` and a labelled title, focus
+  moves into the dialog and returns to the opener, Tab is trapped, Esc closes, a
+  polite live region announces each step, and reduced motion is respected.
+- **Bundled fonts.** Inter, Geist Mono and Bricolage Grotesque (latin subsets,
+  about 115 KB) ship inside `@reevit/react/styles.css` under the family names
+  `Reevit Inter`, `Reevit Mono` and `Reevit Display`, so there are no third-party
+  font requests and no clash with the merchant's fonts.
+- **Theming.** Light by default; `theme.darkMode` or an `html.dark` class switches
+  to dark. `buttonBackgroundColor` and `buttonTextColor` still drive the primary
+  button. Every custom property is prefixed `--rv-` and every rule is scoped under
+  `.reevit-root`.
+
+## ⚠️ Breaking (visual)
+
+- All `reevit-brut__*` and `reevit-brut-overlay` class names are replaced by the
+  new `reevit-*` Ledger names (`reevit-dialog`, `reevit-header`, `reevit-row`,
+  `reevit-cta`, and so on). The `--rb-accent` and `--rb-accent-text` variables are
+  gone. If you override the checkout's CSS, review those overrides. The props,
+  events, exports and the `@reevit/react/styles.css` path are unchanged.
+- The processor picker and the "Make payment" step, with their copy,
+  no longer exist.
+- `LoadingState` takes `title`, `message` and `variant` ("block" or "line"); the
+  `marker` prop is removed. It is not exported from the package entry.
+- `MobileMoneyNetwork` now includes `'mpesa'`, and `MobileMoneyForm` accepts
+  `mode` (`'network'` or `'mpesa'`) and `submitLabel`.
 
 ## Fixed
 
 - Flutterwave checkout converts Reevit minor units using the currency exponent. A 5,012 GHS intent requests 50.12 GHS; a 5,000 XOF intent requests 5,000 XOF.
 - Callback amounts return to minor units using the response currency.
+- The header and Stripe pay button format amounts with the currency's real exponent instead of dividing by 100.
+- Stripe card validation errors stay inline instead of tearing down the card form.
 
 # @reevit/react — 0.11.0 (2026-09-24)
 

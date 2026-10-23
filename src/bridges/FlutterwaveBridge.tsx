@@ -202,7 +202,7 @@ export function FlutterwaveBridge({
     }
   }, [autoStart, startPayment]);
 
-  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Flutterwave" />;
+  return <LoadingState variant="line" title="Opening Flutterwave…" />;
 }
 
 export { loadFlutterwaveScript };

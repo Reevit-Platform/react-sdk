@@ -31,6 +31,7 @@ export function resolveAssetSrc(asset?: AssetSource | null): string | undefined 
  * does not export currencyExponent/toMinorUnits.
  */
 export { formatAmount, currencyExponent, toMinorUnits } from '@reevit/core';
+import { currencyExponent as exponentOf } from '@reevit/core';
 
 /**
  * Generate a unique reference if not provided
@@ -288,5 +289,42 @@ export function getMethodLogos(country: string, method: string): string[] {
     return [LOGOS.mtn].filter(Boolean) as string[];
   }
 
+  return [];
+}
+
+/**
+ * Amount as shown in the checkout header and on buttons: `GHS 755.00`.
+ * Minor units in, ISO code + grouped number out, using the currency's real exponent.
+ */
+export function formatMoney(minor: number, currency: string): string {
+  const code = (currency || 'GHS').toUpperCase();
+  const exp = exponentOf(code);
+  const value = (minor || 0) / 10 ** exp;
+  return `${code} ${value.toLocaleString('en-GB', { minimumFractionDigits: exp, maximumFractionDigits: exp })}`;
+}
+
+export interface MethodMark {
+  /** Stable key, rendered as `data-mark` so CSS can target a brand without matching URLs. */
+  key: string;
+  src: string;
+}
+
+/** Brand marks shown on a method row, keyed for styling. */
+export function getMethodMarks(country: string, method: string): MethodMark[] {
+  const c = country.toUpperCase();
+  const mark = (key: string, asset: AssetSource): MethodMark | null => {
+    const src = resolveAssetSrc(asset);
+    return src ? { key, src } : null;
+  };
+  const keep = (list: (MethodMark | null)[]) => list.filter((m): m is MethodMark => !!m);
+
+  if (method === 'card') return keep([mark('visa', visaLogo), mark('mastercard', mastercardLogo)]);
+  if (method === 'apple_pay') return keep([mark('apple_pay', applePayLogo)]);
+  if (method === 'google_pay') return keep([mark('google_pay', googlePayLogo)]);
+  if (method === 'mobile_money') {
+    if (c === 'GH') return keep([mark('mtn', mtnLogo), mark('telecel', telecelLogo), mark('airteltigo', airteltigoLogo)]);
+    if (c === 'KE') return keep([mark('mpesa', mpesaLogo)]);
+    return keep([mark('mtn', mtnLogo)]);
+  }
   return [];
 }

@@ -184,7 +184,7 @@ export function MonnifyBridge({
   }, [autoOpen, openMonnify, onError]);
 
   if (isLoading) {
-    return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Monnify" />;
+    return <LoadingState variant="line" title="Opening Monnify…" />;
   }
 
   if (!autoOpen && isReady) {

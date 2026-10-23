@@ -19,6 +19,13 @@ try {
   }
   const stylesheet = pkg.exports['./styles.css'];
   assert.ok(existsSync(join(dir, 'package', stylesheet)), 'missing exported stylesheet');
+  // The stylesheet must carry its own fonts: no relative url() that would break outside a bundler.
+  const css = readFileSync(join(dir, 'package', stylesheet), 'utf8');
+  for (const family of ['Reevit Inter', 'Reevit Mono', 'Reevit Display']) {
+    assert.ok(css.includes(`font-family: '${family}'`), `missing @font-face for ${family}`);
+  }
+  assert.equal((css.match(/url\(data:font\/woff2;base64,/g) || []).length, 6, 'expected six inlined woff2 fonts');
+  assert.ok(!/url\((['"]?)\.{1,2}\//.test(css), 'stylesheet still has a relative url()');
   execFileSync('npm', ['exec', '--', 'vitest', 'run', "src/bridges/FlutterwaveBridge.test.tsx"], {
     stdio: 'inherit', env: { ...process.env, npm_config_cache: join(dir, 'npm-cache'), REEVIT_PACKED_ENTRY: join(dir, 'package/dist/index.mjs'), VITE_REEVIT_PACKED_ENTRY: join(dir, 'package/dist/index.mjs') },
   });

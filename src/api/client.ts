@@ -5,6 +5,7 @@
  */
 
 import type { PaymentMethod, ReevitCheckoutConfig, PaymentError } from '../types';
+import { SDK_VERSION } from '../version';
 
 // API Response Types (matching backend handlers_payments.go)
 export interface CreatePaymentIntentRequest {
@@ -238,7 +239,7 @@ export class ReevitAPIClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Reevit-Client': '@reevit/react',
-      'X-Reevit-Client-Version': '0.10.5',
+      'X-Reevit-Client-Version': SDK_VERSION,
     };
     if (this.publicKey) {
       headers['X-Reevit-Key'] = this.publicKey;

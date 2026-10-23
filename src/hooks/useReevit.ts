@@ -22,6 +22,7 @@ import {
   resolveIntentIdentity,
   type PaymentIntentResponse,
 } from '@reevit/core';
+import { SDK_VERSION } from '../version';
 
 // State shape
 interface ReevitState {
@@ -261,7 +262,7 @@ async function selectCheckoutSession(
         'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
         'X-Reevit-Client': '@reevit/react',
-        'X-Reevit-Client-Version': '0.10.5',
+        'X-Reevit-Client-Version': SDK_VERSION,
       },
       body: JSON.stringify({ method, provider }),
     },
