@@ -20,6 +20,7 @@ export {
   type DirectApiError,
   type DirectResult,
   type PublicAttempt,
+  type BankDetails,
   type AttemptNextAction,
   type AttemptFailure,
   type AttemptStatus,

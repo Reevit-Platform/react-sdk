@@ -9,8 +9,8 @@ export { PaymentMethodSelector } from './components';
 export { MobileMoneyForm } from './components';
 
 // Hooks
-export { useReevit, useDirectCharge } from './hooks';
-export type { DirectCharge, DirectFailure, DirectPhase } from './hooks';
+export { useReevit, useDirectCharge, useDirectBank } from './hooks';
+export type { DirectCharge, DirectFailure, DirectPhase, DirectBank, BankPhase } from './hooks';
 
 // Bridges
 export {
@@ -43,6 +43,7 @@ export {
   createDirectChargeClient,
   type DirectChargeApi,
   type PublicAttempt,
+  type BankDetails,
   type DirectApiError,
   type ReevitAPIClientConfig,
   type PaymentIntentResponse,

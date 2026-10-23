@@ -1,3 +1,19 @@
+# @reevit/react — 0.14.0
+
+## Bank transfer in Reevit's own screens
+
+When a checkout session says a provider takes bank transfer **directly** (`method_options[].flow === 'direct'` for `bank_transfer`, in a market where the backend has switched it on), picking **Bank transfer** no longer opens a provider window. Reevit asks the server for a one-off account and shows it. Providers that say `hosted` keep today's handoff; an older backend sends no `method_options` and behaves exactly as 0.13.0. Cards stay in the provider's window, and nothing about the payer's bank or card is collected here: the shopper is asked for nothing at all.
+
+- **The account.** Bank, account number, account name and amount, each with a real **Copy** button (it copies the plain digits and the plain amount, then reads **Copied**; where the clipboard is blocked it says **Press ⌘C**). The account-name row is simply absent when the provider returns none (Flutterwave in Ghana). A live countdown from the server's `expires_at`.
+- **I've sent it.** A forced status read (`GET /v1/payments/{id}/status?check=1`, still single-flight on the server), never a shortcut to success. **Confirming your transfer** shows while it runs. If nothing has arrived: **We haven't seen it yet** with **Check again** and **Keep waiting**; the screen keeps watching in the background either way.
+- **Expired.** When the clock runs out the attempt gets one last forced read (a transfer can land in the final seconds), then **These details have expired** with **Get new details**. A new account is a new charge. The server refuses it (`409 attempt_pending`) while the old account could still receive money; the screen keeps its place and shows the server's line. A transfer found just before the new request wins and no second account is opened.
+- **Only `succeeded` is success**, as for mobile money. A transfer for the wrong amount is held for review by the server; the shopper just keeps seeing **Confirming**.
+- **Receipt** reads `Bank transfer · <bank>`.
+
+New in the package: `useDirectBank`, `DirectBankState`, `BankDetails`; `ChargeRequest` takes `method: 'bank_transfer'` (no phone) and `DirectChargeApi.status` takes `{ check: true }`.
+
+Needs the backend with direct bank transfer (the `FLUTTERWAVE_`, `PAYSTACK_` and `MONNIFY_DIRECT_BANK_ENABLED` flags, default off) and a server-created checkout session (`sessionSecret`).
+
 # @reevit/react — 0.13.0
 
 ## Mobile money in Reevit's own screens

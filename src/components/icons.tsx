@@ -11,3 +11,7 @@ export const BackIcon = () => (
 export const ChevronIcon = () => (
   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" /></svg>
 );
+
+export const CopyIcon = () => (
+  <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="7" height="8" rx="1.5" /><path d="M10.5 3.5h-6a1 1 0 0 0-1 1v7" /></svg>
+);
