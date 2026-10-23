@@ -13,6 +13,7 @@ import type {
   PaymentIntent,
   ReevitTheme,
   CheckoutProviderOption,
+  MethodOption,
 } from '../types';
 import {
   ReevitAPIClient,
@@ -160,8 +161,34 @@ function normalizeProviderMethod(method: string): PaymentMethod | null {
   return null;
 }
 
+interface RawMethodOption {
+  method: string;
+  flow?: string;
+  networks?: string[];
+  needs?: string[];
+  voucher_networks?: string[];
+}
+
+function mapMethodOptions(options?: RawMethodOption[]): MethodOption[] | undefined {
+  if (!options) return undefined;
+  return options
+    .map((option) => {
+      const method = normalizeProviderMethod(option.method);
+      if (!method) return null;
+      return {
+        method,
+        // Anything the server does not call `direct` is the provider's own window.
+        flow: option.flow === 'direct' ? 'direct' : 'hosted',
+        networks: (option.networks ?? []).map((n) => n.toLowerCase()),
+        needs: option.needs ?? [],
+        voucherNetworks: (option.voucher_networks ?? []).map((n) => n.toLowerCase()),
+      } as MethodOption;
+    })
+    .filter(Boolean) as MethodOption[];
+}
+
 function mapAvailableProviders(
-  providers?: Array<{ provider: string; name: string; methods: string[]; countries?: string[] }>
+  providers?: Array<{ provider: string; name: string; methods: string[]; countries?: string[]; method_options?: RawMethodOption[] }>
 ): CheckoutProviderOption[] | undefined {
   if (!providers || providers.length === 0) return undefined;
 
@@ -176,6 +203,7 @@ function mapAvailableProviders(
         name: provider.name,
         methods,
         countries: provider.countries,
+        methodOptions: mapMethodOptions(provider.method_options),
       };
     })
     .filter((provider) => provider.methods.length > 0);
@@ -778,6 +806,20 @@ export function useReevit(options: UseReevitOptions) {
     [state.paymentIntent, state.selectedMethod, onSuccess, onError, onStateChange, setConfirmation]
   );
 
+  /**
+   * A payment the backend itself reported as `succeeded` (Reevit's own mobile money
+   * screens read it from the status route). No further confirmation is needed.
+   */
+  const completePayment = useCallback(
+    (result: PaymentResult) => {
+      settleControllerRef.current?.abort();
+      setConfirmation('idle');
+      dispatch({ type: 'PROCESS_SUCCESS', payload: result });
+      onSuccess?.(result);
+    },
+    [onSuccess, setConfirmation]
+  );
+
   // Handle PSP bridge success (called by PSP bridge components)
   const handlePspSuccess = useCallback(
     async (pspData: Record<string, unknown>) => {
@@ -851,6 +893,7 @@ export function useReevit(options: UseReevitOptions) {
     initialize,
     selectMethod,
     processPayment,
+    completePayment,
     handlePspSuccess,
     handlePspError,
     reset,

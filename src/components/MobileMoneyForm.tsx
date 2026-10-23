@@ -22,6 +22,10 @@ interface MobileMoneyFormProps {
   mode?: 'network' | 'mpesa';
   /** Primary button label, e.g. "Pay GHS 755.00". */
   submitLabel?: string;
+  /** Networks the provider accepts. Omit to offer all three. */
+  networks?: string[];
+  /** A polite line above the button (an earlier prompt still active, no connection). */
+  notice?: string | null;
 }
 
 const NETWORKS: { id: Exclude<MobileMoneyNetwork, 'mpesa'>; name: string }[] = [
@@ -56,6 +60,8 @@ export function MobileMoneyForm({
   hideCancel = false,
   mode = 'network',
   submitLabel = 'Continue',
+  networks: allowedNetworks,
+  notice,
 }: MobileMoneyFormProps) {
   const mpesa = mode === 'mpesa';
   const inputId = useId();
@@ -122,6 +128,7 @@ export function MobileMoneyForm({
   );
 
   const logos = mpesa ? [] : getMethodMarks('GH', 'mobile_money');
+  const choices = allowedNetworks?.length ? NETWORKS.filter((n) => allowedNetworks.includes(n.id)) : NETWORKS;
   const suffix = mpesa ? getMethodMarks('KE', 'mobile_money')[0] : undefined;
 
   return (
@@ -158,7 +165,7 @@ export function MobileMoneyForm({
           <fieldset className="reevit-group">
             <legend>Network</legend>
             <div className="reevit-networks">
-              {NETWORKS.map((n) => {
+              {choices.map((n) => {
                 const logo = logos.find((mark) => mark.key === n.id);
                 return (
                   <button
@@ -178,6 +185,8 @@ export function MobileMoneyForm({
             {networkError && <p className="reevit-error" id={networkErrorId} role="alert">{networkError}</p>}
           </fieldset>
         )}
+
+        {notice && <p className="reevit-status" data-reevit="status" role="status" aria-live="polite">{notice}</p>}
 
         <button type="submit" className="reevit-cta" data-reevit="cta" disabled={isLoading}>
           {isLoading ? 'Please wait' : submitLabel}

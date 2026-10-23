@@ -1,3 +1,21 @@
+# @reevit/react — 0.13.0
+
+## Mobile money in Reevit's own screens
+
+When a checkout session says a provider takes mobile money **directly** (`method_options[].flow === 'direct'` on `GET /v1/checkout/sessions/{secret}`), the checkout no longer opens a provider window for it. Reevit's own screens collect the number, send the prompt, and wait for the real result. Providers that say `hosted` keep today's provider handoff, and a backend that sends no `method_options` behaves exactly as 0.12.1. Cards are never direct: card details stay in the provider's window.
+
+- **Number form.** Network is detected from the prefix (override it with the three network marks); only the networks the provider accepts are offered. M-Pesa keeps the +254 form. The number is sent to Reevit, never put in a URL or a header.
+- **Approve on your phone.** A live countdown from the server's `expires_at`, **I've approved** (an immediate status read, never a shortcut to success), **Resend prompt** (disabled until the server's `can_resend_at`; a `409 attempt_pending` shows the server's line and keeps the earlier prompt) and **Use another number**.
+- **Code or voucher.** When the provider asks for an OTP or a Telecel voucher, one calm screen takes it: a single mono field, the dial code when there is one, and the number of tries left once it is two or fewer. Five wrong codes end the attempt.
+- **Declined, insufficient funds, no response.** Each has its own panel with **Try again** (a new attempt for the same number), **Send a new prompt** or **Use another number**, and **Choose another method** when there is one. When the attempt limit is spent, the only ways out are another method or closing.
+- **Failover.** While the server reports a rerouted attempt still pending, the panel says so; the receipt carries the one-line note.
+- **Only `succeeded` is success.** A pending, processing or unreadable answer never ends the flow. If the countdown runs out the screen ends, but the attempt is still watched for five minutes, so a late approval still reaches the receipt and `onSuccess`.
+- **Polite polling.** The status read follows the server's `poll_after_ms`, backs off on errors, pauses while the tab is hidden, and stops when the checkout closes or unmounts. One request of each kind is in flight at a time; a retry after an unanswered charge reuses its `attempt_token`, so the server replays it instead of sending a second prompt.
+
+New in the package: `createDirectChargeClient` (`charge`, `status`, `action`, `resend`, with the `X-Reevit-Client-Secret` header) and its types. `PaymentResult` for a direct payment carries `metadata.backend_status`, `rerouted`, `receipt_url` and `network`; it does not carry the number.
+
+Needs the backend with direct charge (`/charge`, `/status`, `/action`, `/resend`) and a server-created checkout session (`sessionSecret`). Public-key mode and `initialPaymentIntent` keep the previous flows.
+
 # @reevit/react — 0.12.1
 
 ## 🐛 M-Pesa now completes

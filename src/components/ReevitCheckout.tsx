@@ -8,8 +8,11 @@
  */
 
 import { useEffect, useState, useCallback, useMemo, useRef, createContext, useContext } from 'react';
-import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, CheckoutProviderOption } from '../types';
+import type { ReevitCheckoutProps, PaymentMethod, MobileMoneyFormData, PaymentError, CheckoutProviderOption, MethodOption } from '../types';
 import { useReevit } from '../hooks/useReevit';
+import { useDirectCharge, FAILOVER_DONE, type DirectInput } from '../hooks/useDirectCharge';
+import { createDirectChargeClient, type PublicAttempt } from '../api/direct';
+import { MomoWaitPanel, MomoCodePanel, MomoFailurePanel, formatPayerPhone, NETWORK_LABEL } from './DirectMomo';
 import { MobileMoneyForm } from './MobileMoneyForm';
 import { LoadingState } from './LoadingState';
 import { MethodList, METHOD_LABEL } from './MethodList';
@@ -64,8 +67,16 @@ const METHOD_ORDER: PaymentMethod[] = ['card', 'mobile_money', 'bank_transfer', 
 /** The backend refuses a checkout-session selection past attempt 3. */
 const MAX_PROMPT_ATTEMPT = 3;
 
-type Stage = 'list' | 'phone' | 'preparing' | 'bridge';
-type ViewId = 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'confirming' | 'unconfirmed' | 'receipt' | 'failure';
+type Stage = 'list' | 'phone' | 'direct' | 'preparing' | 'bridge';
+type ViewId =
+  | 'loading' | 'list' | 'phone' | 'preparing' | 'bridge' | 'processing' | 'confirming' | 'unconfirmed' | 'receipt' | 'failure'
+  | 'momo' | 'momo-wait' | 'momo-code' | 'momo-fail';
+
+/** A provider that takes a method in Reevit's own screens, with its capabilities. */
+interface DirectSelection {
+  provider: CheckoutProviderOption;
+  option: MethodOption;
+}
 
 const titleCase = (value: string) => value.replace(/^\w/, (c) => c.toUpperCase());
 
@@ -161,6 +172,7 @@ export function ReevitCheckout({
     initialize,
     selectMethod,
     processPayment,
+    completePayment,
     reset,
     close: closeCheckout,
   } = useReevit({
@@ -250,11 +262,56 @@ export function ReevitCheckout({
     [paymentIntent?.recommendedPsp, providerOptions]
   );
 
-  // The only method is M-Pesa mobile money: skip the list and ask for the number.
+  /**
+   * Reevit's own screens take a method when a provider says `flow: direct` for it and
+   * the checkout came from a server-created session (the charge route is keyed by the
+   * session secret). Anything else keeps the provider's own window.
+   */
+  const directFor = useCallback(
+    (method: PaymentMethod): DirectSelection | undefined => {
+      if (!sessionSecret || method !== 'mobile_money') return undefined;
+      const recommended = paymentIntent?.recommendedPsp?.toLowerCase();
+      const candidates = providerOptions
+        .map((provider) => ({ provider, option: provider.methodOptions?.find((o) => o.method === method && o.flow === 'direct') }))
+        .filter((c): c is DirectSelection => !!c.option);
+      return candidates.find((c) => c.provider.provider.toLowerCase() === recommended) ?? candidates[0];
+    },
+    [paymentIntent?.recommendedPsp, providerOptions, sessionSecret]
+  );
+  const directSelection = useMemo(() => directFor('mobile_money'), [directFor]);
+
+  // The only method is mobile money: skip the list and ask for the number.
   const soleMethod = methodList.length === 1 ? methodList[0] : null;
   const soleProvider = soleMethod ? providerFor(soleMethod) : undefined;
-  const directPhone = soleMethod === 'mobile_money' && !!soleProvider?.provider.toLowerCase().includes('mpesa');
-  const activeStage: Stage = stage === 'list' && directPhone ? 'phone' : stage;
+  const soleDirect = soleMethod === 'mobile_money' && !!directSelection;
+  const directPhone = !soleDirect && soleMethod === 'mobile_money' && !!soleProvider?.provider.toLowerCase().includes('mpesa');
+  const activeStage: Stage = stage === 'list' && soleDirect ? 'direct' : stage === 'list' && directPhone ? 'phone' : stage;
+
+  const directApi = useMemo(() => createDirectChargeClient({ baseUrl: apiBaseUrl }), [apiBaseUrl]);
+  /** "MTN MoMo · 024 412 8890", kept for the receipt only; the number is not handed to the merchant. */
+  const receiptMethodRef = useRef<string | null>(null);
+  const charge = useDirectCharge({
+    api: directApi,
+    sessionSecret,
+    provider: directSelection?.provider.provider ?? '',
+    onSuccess: (attempt: PublicAttempt, input: DirectInput | null) => {
+      const label = input?.network ? NETWORK_LABEL[input.network] : undefined;
+      receiptMethodRef.current = input && label ? `${label} · ${formatPayerPhone(input.phone)}` : null;
+      completePayment({
+        paymentId: attempt.id,
+        reference: reference || '',
+        amount: attempt.amount,
+        currency: attempt.currency,
+        paymentMethod: 'mobile_money',
+        psp: directSelection?.provider.provider ?? attempt.provider_display ?? '',
+        pspReference: attempt.id,
+        status: 'success',
+        metadata: { backend_status: attempt.status, rerouted: attempt.rerouted, receipt_url: attempt.receipt_url, network: input?.network },
+      });
+    },
+    onFailure: (failure) => onError?.({ code: failure.code, message: failure.message, recoverable: failure.retryable }),
+  });
+  const resetCharge = charge.reset;
 
   // Initialize when opened
   useEffect(() => {
@@ -273,7 +330,8 @@ export function ReevitCheckout({
     setSelectedProvider(null);
     setPspError(null);
     setConfirmLeave(false);
-  }, [controlledIsOpen, setIsOpen]);
+    resetCharge();
+  }, [controlledIsOpen, resetCharge, setIsOpen]);
 
   // Close modal
   const handleClose = useCallback(() => {
@@ -286,7 +344,13 @@ export function ReevitCheckout({
     setSelectedProvider(null);
     setPspError(null);
     setConfirmLeave(false);
-  }, [clearSuccessTimer, closeCheckout, setIsOpen]);
+    resetCharge();
+  }, [clearSuccessTimer, closeCheckout, resetCharge, setIsOpen]);
+
+  // Closing from outside (a controlled `isOpen`) must also stop any prompt being followed.
+  useEffect(() => {
+    if (!isOpen) resetCharge();
+  }, [isOpen, resetCharge]);
 
   useEffect(() => {
     return () => {
@@ -352,6 +416,16 @@ export function ReevitCheckout({
         return;
       }
 
+      const direct = directFor(method);
+      if (direct) {
+        // Reevit's own screens: the number first, then the prompt. An earlier prompt keeps being watched.
+        setSelectedProvider(direct.provider.provider);
+        selectMethod(method);
+        charge.useAnotherNumber();
+        setStage('direct');
+        return;
+      }
+
       if (method === 'mobile_money' && provider.provider.toLowerCase().includes('mpesa')) {
         // M-Pesa is the one in-widget mobile money flow: ask for the number first.
         setSelectedProvider(provider.provider);
@@ -362,7 +436,7 @@ export function ReevitCheckout({
 
       void proceed(method, provider);
     },
-    [onError, proceed, providerFor, selectMethod]
+    [charge, directFor, onError, proceed, providerFor, selectMethod]
   );
 
   // Mobile money number submitted (M-Pesa)
@@ -384,6 +458,15 @@ export function ReevitCheckout({
       void proceed('mobile_money', provider, { phone: data.phone, attempt });
     },
     [onError, providerFor, proceed]
+  );
+
+  // Mobile money number submitted on Reevit's own form.
+  const handleDirectSubmit = useCallback(
+    (data: MobileMoneyFormData) => {
+      const networks = directSelection?.option.networks ?? [];
+      void charge.start({ phone: data.phone, network: networks.includes(data.network) ? data.network : undefined });
+    },
+    [charge, directSelection]
   );
 
   // Handle PSP callback
@@ -414,9 +497,11 @@ export function ReevitCheckout({
   // Back chevron on a detail panel
   const handlePanelBack = useCallback(() => {
     pickTokenRef.current += 1;
+    // Leaving mobile money mid-prompt: back to a clean form, the prompt still watched.
+    charge.useAnotherNumber();
     setStage('list');
     setSelectedProvider(null);
-  }, []);
+  }, [charge]);
 
   // "Try again" on the failure panel
   const handleBack = useCallback(async () => {
@@ -502,6 +587,13 @@ export function ReevitCheckout({
   else if (confirmation === 'confirming') view = 'confirming';
   else if (status === 'processing') view = 'processing';
   else if (!paymentIntent) view = 'loading';
+  else if (activeStage === 'direct') {
+    view =
+      charge.phase === 'waiting' ? 'momo-wait'
+      : charge.phase === 'code' || charge.phase === 'submitting' ? 'momo-code'
+      : charge.phase === 'failed' && charge.failure ? 'momo-fail'
+      : 'momo';
+  }
   else if (activeStage === 'preparing') view = 'preparing';
   else if (activeStage === 'bridge') view = 'bridge';
   else if (activeStage === 'phone') view = 'phone';
@@ -514,16 +606,20 @@ export function ReevitCheckout({
   const directionRef = useRef<{ view: ViewId; direction: 'forward' | 'back' | 'fade' }>({ view: panelView, direction: 'fade' });
   if (directionRef.current.view !== panelView) {
     const from = directionRef.current.view;
-    const isDetail = (v: ViewId) => v === 'phone' || v === 'preparing' || v === 'bridge';
+    const isDetail = (v: ViewId) => v === 'phone' || v === 'preparing' || v === 'bridge' || v === 'momo';
+    const isPrompt = (v: ViewId) => v === 'momo-wait' || v === 'momo-code' || v === 'momo-fail';
     directionRef.current = {
       view: panelView,
-      direction: panelView === 'list' && isDetail(from) ? 'back' : isDetail(panelView) && from === 'list' ? 'forward' : 'fade',
+      direction:
+        (panelView === 'list' && (isDetail(from) || isPrompt(from))) || (panelView === 'momo' && isPrompt(from))
+          ? 'back'
+          : isDetail(panelView) && from === 'list' ? 'forward' : 'fade',
     };
   }
   const direction = directionRef.current.direction;
 
   // A payment is in flight while a provider window is open or the result is being confirmed.
-  const inFlight = view === 'bridge' || view === 'processing';
+  const inFlight = view === 'bridge' || view === 'processing' || view === 'momo-wait' || view === 'momo-code';
 
   const finishReceipt = useCallback(() => {
     if (result) deliverSuccess(result);
@@ -566,6 +662,10 @@ export function ReevitCheckout({
     loading: 'Preparing checkout',
     list: 'Choose a payment method',
     phone: 'Mobile money',
+    momo: 'Mobile money',
+    'momo-wait': 'Waiting for your approval',
+    'momo-code': 'Enter your code',
+    'momo-fail': charge.failure?.title ?? 'Payment failed',
     preparing: `Opening ${pspName}`,
     bridge: `Opening ${pspName}`,
     processing: 'Processing payment',
@@ -716,11 +816,12 @@ export function ReevitCheckout({
         return result ? (
           <ReceiptPanel
             reference={result.reference || result.paymentId}
-            method={METHOD_LABEL[result.paymentMethod] || methodLabel}
+            method={(result.paymentMethod === 'mobile_money' && receiptMethodRef.current) || METHOD_LABEL[result.paymentMethod] || methodLabel}
             provider={providerOptions.find((p) => p.provider.toLowerCase() === result.psp?.toLowerCase())?.name || titleCase(result.psp || pspName)}
             merchantName={brandName || 'Checkout'}
             orderRef={orderRef}
             amountText={amountText}
+            note={result.metadata?.rerouted === true ? FAILOVER_DONE : undefined}
             onDone={finishReceipt}
           />
         ) : null;
@@ -745,6 +846,47 @@ export function ReevitCheckout({
             />
           </>
         );
+      case 'momo': {
+        const option = directSelection?.option;
+        const mpesa = option ? option.networks.length === 1 && option.networks[0] === 'mpesa' : displayCurrency === 'KES';
+        return (
+          <>
+            <PanelHead title="Mobile money" onBack={soleDirect ? undefined : handlePanelBack} />
+            <MobileMoneyForm
+              mode={mpesa ? 'mpesa' : 'network'}
+              networks={mpesa ? undefined : option?.networks}
+              initialPhone={charge.input?.phone || momoData?.phone || phone}
+              submitLabel={`Pay ${amountText}`}
+              hideCancel
+              isLoading={charge.phase === 'starting'}
+              notice={charge.formNotice}
+              onSubmit={handleDirectSubmit}
+            />
+          </>
+        );
+      }
+      case 'momo-wait': {
+        const action = charge.attempt?.next_action;
+        return (
+          <MomoWaitPanel
+            charge={charge}
+            phoneText={charge.input ? formatPayerPhone(charge.input.phone) : action?.phone_masked ?? ''}
+            network={charge.input?.network ?? action?.network ?? (displayCurrency === 'KES' ? 'mpesa' : undefined)}
+          />
+        );
+      }
+      case 'momo-code':
+        return <MomoCodePanel key={`${charge.attempt?.id}:${charge.codeKind}`} charge={charge} />;
+      case 'momo-fail':
+        return charge.failure ? (
+          <MomoFailurePanel
+            charge={charge}
+            failure={charge.failure}
+            canChooseAnother={methodList.length > 1}
+            onChooseAnother={handlePanelBack}
+            onClose={handleClose}
+          />
+        ) : null;
       case 'preparing':
         return (
           <>
