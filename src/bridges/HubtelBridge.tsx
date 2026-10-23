@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PaymentMethod, PaymentResult, PaymentError } from '../types';
 import { createReevitClient } from '../api/client';
 import { LoadingState } from '../components/LoadingState';
+import { Scope } from '../components/Scope';
 import {
   openHubtelCheckoutUrl,
   startHubtelHostedCheckout,
@@ -130,29 +131,22 @@ export function HubtelBridge({
 
   if (stage === 'idle') {
     return (
-      <div className="reevit-brut__state">
-        <span className="reevit-brut__state-marker">PAYMENT GATEWAY</span>
-        <h3 className="reevit-brut__state-title">Pay with Hubtel</h3>
-        <p className="reevit-brut__state-sub">You'll finish the payment on Hubtel's secure checkout</p>
-        <button type="button" className="reevit-brut__cta" onClick={() => setStarted(true)}>
-          <span>CONTINUE TO HUBTEL</span>
-          <span>&rarr;</span>
-        </button>
-      </div>
+      <Scope>
+        <div className="reevit-result" data-reevit="bridge-idle">
+          <p className="reevit-text" style={{ marginTop: 0 }}>You’ll finish the payment on Hubtel’s secure checkout.</p>
+          <button type="button" className="reevit-cta" data-reevit="cta" data-first="" onClick={() => setStarted(true)}>
+            Continue to Hubtel
+          </button>
+        </div>
+      </Scope>
     );
   }
 
   if (stage === 'open') {
-    return (
-      <LoadingState
-        marker="AWAITING CONFIRMATION"
-        title="Complete your payment with Hubtel"
-        message="This updates as soon as Hubtel confirms the payment"
-      />
-    );
+    return <LoadingState variant="line" title="Complete your payment with Hubtel" />;
   }
 
-  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Hubtel" />;
+  return <LoadingState variant="line" title="Opening Hubtel…" />;
 }
 
 /**

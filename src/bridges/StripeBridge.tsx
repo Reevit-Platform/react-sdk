@@ -5,6 +5,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { LoadingState } from '../components/LoadingState';
+import { Scope } from '../components/Scope';
+import { formatMoney } from '../utils';
 
 declare global {
   interface Window {
@@ -52,6 +54,8 @@ export interface StripeBridgeProps {
   amount: number;
   currency: string;
   appearance?: StripeAppearance;
+  /** Use the dark Ledger palette for Stripe Elements (ignored when `appearance` is set). */
+  dark?: boolean;
   onSuccess: (result: { paymentIntentId: string; status: string }) => void;
   onError: (error: { code: string; message: string }) => void;
   onReady?: () => void;
@@ -92,88 +96,81 @@ export function loadStripeScript(): Promise<void> {
   return stripeScriptPromise;
 }
 
-// Default Reevit-themed appearance for Stripe Elements
-const getReevitStripeAppearance = (): StripeAppearance => {
-  // Check if we're in dark mode
-  const isDarkMode = typeof window !== 'undefined' && 
-    window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  
+// Ledger-themed appearance for Stripe Elements: Inter-style type, ink on paper,
+// 12px radius, 48px inputs and the checkout's own input border and focus ring.
+// (Stripe renders in its own iframe, so it cannot load the bundled fonts; the
+// system UI face is the closest match it can use.)
+const getReevitStripeAppearance = (dark: boolean): StripeAppearance => {
+  const ink = dark ? '#f4f3ee' : '#151513';
+  const paper = dark ? '#1a1a18' : '#f4f3ee';
+  const line = dark ? 'rgba(244, 243, 238, 0.14)' : '#d3d0c6';
+  const lineStrong = dark ? 'rgba(244, 243, 238, 0.32)' : '#a8a69b';
+  const field = dark ? 'rgba(244, 243, 238, 0.04)' : 'rgba(255, 255, 255, 0.6)';
+  const muted = dark ? '#a3a29c' : '#6b6a64';
+
   return {
-    theme: isDarkMode ? 'night' : 'stripe',
+    theme: dark ? 'night' : 'flat',
     variables: {
-      colorPrimary: isDarkMode ? '#fafafa' : '#171717',
-      colorBackground: isDarkMode ? '#171717' : '#ffffff',
-      colorText: isDarkMode ? '#fafafa' : '#171717',
-      colorTextSecondary: isDarkMode ? '#a3a3a3' : '#737373',
-      colorTextPlaceholder: isDarkMode ? '#737373' : '#a3a3a3',
-      colorDanger: '#dc2626',
-      fontFamily: '"Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-      fontSizeBase: '14px',
-      fontSizeSm: '12px',
-      fontSizeLg: '16px',
+      colorPrimary: ink,
+      colorBackground: paper,
+      colorText: ink,
+      colorTextSecondary: muted,
+      colorTextPlaceholder: dark ? '#6f6e69' : '#9a988f',
+      colorDanger: '#ef4444',
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+      fontSizeBase: '16px',
+      fontSizeSm: '13px',
       fontWeightNormal: '400',
       fontWeightMedium: '500',
       fontWeightBold: '600',
-      borderRadius: '10px',
+      borderRadius: '12px',
       spacingUnit: '4px',
       spacingGridRow: '16px',
-      spacingGridColumn: '16px',
+      spacingGridColumn: '12px',
     },
     rules: {
       '.Input': {
-        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e5e5e5',
+        border: `1px solid ${line}`,
         boxShadow: 'none',
-        padding: '12px 14px',
-        fontSize: '14px',
-        backgroundColor: isDarkMode ? '#262626' : '#ffffff',
+        padding: '14px',
+        height: '48px',
+        fontSize: '16px',
+        backgroundColor: field,
       },
+      '.Input:hover': { border: `1px solid ${lineStrong}` },
       '.Input:focus': {
-        border: isDarkMode ? '1px solid #a3a3a3' : '1px solid #737373',
-        boxShadow: 'none',
-        backgroundColor: isDarkMode ? '#262626' : '#fafafa',
+        border: `1px solid ${ink}`,
+        boxShadow: `0 0 0 1px ${ink}`,
+        backgroundColor: field,
       },
       '.Input--invalid': {
-        border: '1px solid #dc2626',
-        boxShadow: 'none',
+        border: '1px solid #ef4444',
+        boxShadow: '0 0 0 1px #ef4444',
       },
       '.Label': {
-        fontSize: '12px',
+        fontSize: '13px',
         fontWeight: '500',
-        marginBottom: '6px',
-        color: isDarkMode ? '#a3a3a3' : '#737373',
-        textTransform: 'none',
-        letterSpacing: '0.02em',
+        marginBottom: '7px',
+        color: dark ? '#d9d7cf' : '#3a3935',
       },
       '.Tab': {
-        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e5e5e5',
-        backgroundColor: 'transparent',
-        borderRadius: '10px',
-        padding: '12px 14px',
+        border: `1px solid ${line}`,
+        backgroundColor: field,
+        boxShadow: 'none',
       },
-      '.Tab:hover': {
-        border: isDarkMode ? '1px solid #a3a3a3' : '1px solid #737373',
-        backgroundColor: isDarkMode ? '#262626' : '#fafafa',
-      },
+      '.Tab:hover': { border: `1px solid ${lineStrong}` },
       '.Tab--selected': {
-        border: isDarkMode ? '1px solid #fafafa' : '1px solid #171717',
-        backgroundColor: isDarkMode ? '#262626' : '#fafafa',
-      },
-      '.TabIcon': {
-        marginRight: '8px',
+        border: `1px solid ${ink}`,
+        boxShadow: `0 0 0 1px ${ink}`,
+        backgroundColor: field,
       },
       '.Block': {
-        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e5e5e5',
-        borderRadius: '10px',
-        backgroundColor: isDarkMode ? '#262626' : '#ffffff',
-        padding: '12px 14px',
+        border: `1px solid ${line}`,
+        backgroundColor: field,
+        boxShadow: 'none',
       },
-      '.CheckboxInput': {
-        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e5e5e5',
-      },
-      '.CheckboxInput--checked': {
-        backgroundColor: isDarkMode ? '#fafafa' : '#171717',
-        borderColor: isDarkMode ? '#fafafa' : '#171717',
-      },
+      '.CheckboxInput': { border: `1px solid ${line}` },
+      '.CheckboxInput--checked': { backgroundColor: ink, borderColor: ink },
     },
   };
 };
@@ -184,6 +181,7 @@ export function StripeBridge({
   amount,
   currency,
   appearance,
+  dark = false,
   onSuccess,
   onError,
   onReady,
@@ -212,7 +210,7 @@ export function StripeBridge({
         stripeRef.current = window.Stripe(publishableKey);
 
         // Use provided appearance or fall back to Reevit default theme
-        const stripeAppearance = appearance || getReevitStripeAppearance();
+        const stripeAppearance = appearance || getReevitStripeAppearance(dark);
 
         elementsRef.current = stripeRef.current.elements({
           clientSecret,
@@ -255,7 +253,7 @@ export function StripeBridge({
       mounted = false;
       paymentElementRef.current?.destroy();
     };
-  }, [publishableKey, clientSecret, appearance, onReady, onError]);
+  }, [publishableKey, clientSecret, appearance, dark, onReady, onError]);
 
   const handleSubmit = useCallback(async () => {
     if (!stripeRef.current || !elementsRef.current) {
@@ -300,66 +298,55 @@ export function StripeBridge({
     }
   }, [onSuccess, onError]);
 
-  // Format the amount for display
-  const formattedAmount = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount / 100);
+  const formattedAmount = formatMoney(amount, currency);
 
   return (
-    <div className="reevit-stripe-bridge">
-      {isLoading && (
-        <LoadingState
-          marker="PAYMENT GATEWAY"
-          title="Connecting to Stripe"
-          message="Loading the secure payment form"
+    <Scope dark={dark}>
+      <div className="reevit-stripe-bridge" data-reevit="stripe">
+        {isLoading && <LoadingState variant="line" title="Opening Stripe…" />}
+
+        <div
+          ref={containerRef}
+          className="reevit-stripe-element"
+          style={{ display: isLoading ? 'none' : 'block' }}
         />
-      )}
 
-      <div
-        ref={containerRef}
-        className="reevit-stripe-element"
-        style={{ display: isLoading ? 'none' : 'block', minHeight: '200px' }}
-      />
+        {error && !isLoading && (
+          <p className="reevit-error" role="alert">{error}</p>
+        )}
 
-      {error && !isLoading && (
-        <div className="reevit-stripe-error">
-          <p>{error}</p>
-        </div>
-      )}
-
-      {!isLoading && (
-        <div className="reevit-stripe-actions">
-          <button
-            type="button"
-            className="reevit-submit-btn"
-            onClick={handleSubmit}
-            disabled={isLoading || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="reevit-spinner" style={{ width: '16px', height: '16px' }} />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>Pay {formattedAmount}</>
-            )}
-          </button>
-
-          {onCancel && (
+        {!isLoading && (
+          <>
             <button
               type="button"
-              className="reevit-cancel-btn"
-              onClick={onCancel}
-              disabled={isSubmitting}
+              className="reevit-cta"
+              data-reevit="cta"
+              onClick={handleSubmit}
+              disabled={isLoading || isSubmitting}
             >
-              Cancel
+              {isSubmitting ? (
+                <>
+                  <span className="reevit-spin" aria-hidden="true" />
+                  <span>Processing…</span>
+                </>
+              ) : (
+                <>Pay {formattedAmount}</>
+              )}
             </button>
-          )}
-        </div>
-      )}
-    </div>
+
+            {onCancel && (
+              <button
+                type="button"
+                className="reevit-cta-secondary"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </Scope>
   );
 }

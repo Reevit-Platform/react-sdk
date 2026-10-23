@@ -1,27 +1,52 @@
 /**
- * MobileMoneyForm Component
- * Collects the mobile money phone number and network. The network is
- * auto-selected from the number's prefix as the user types, and can also
- * be picked manually.
+ * MobileMoneyForm
+ * Collects the mobile money number. Two layouts:
+ *  - `network` (Ghana): number + network picker. The network is auto-selected
+ *    from the number's prefix as it is typed and can be overridden.
+ *  - `mpesa` (Kenya): +254 prefix, M-Pesa mark, no network choice. The submitted
+ *    phone is normalised to `254XXXXXXXXX`, which is what the M-Pesa bridge sends.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useId } from 'react';
 import type { MobileMoneyNetwork, MobileMoneyFormData } from '../types';
-import { validatePhone, detectNetwork, formatPhone, cn } from '../utils';
+import { validatePhone, detectNetwork, cn, getMethodMarks } from '../utils';
+import { Scope } from './Scope';
 
 interface MobileMoneyFormProps {
   onSubmit: (data: MobileMoneyFormData) => void;
   onCancel?: () => void;
   isLoading?: boolean;
   initialPhone?: string;
+  /** Hide the secondary Back button (the panel header already has one). */
   hideCancel?: boolean;
+  mode?: 'network' | 'mpesa';
+  /** Primary button label, e.g. "Pay GHS 755.00". */
+  submitLabel?: string;
 }
 
-const networks: { id: MobileMoneyNetwork; name: string }[] = [
+const NETWORKS: { id: Exclude<MobileMoneyNetwork, 'mpesa'>; name: string }[] = [
   { id: 'mtn', name: 'MTN' },
   { id: 'telecel', name: 'Telecel' },
   { id: 'airteltigo', name: 'AirtelTigo' },
 ];
+
+const digitsOf = (value: string) => value.replace(/\D/g, '');
+
+/** 0244128890 -> "024 412 8890". International input (+233…) is left as typed. */
+function formatLocal(value: string): string {
+  if (value.startsWith('+')) return '+' + digitsOf(value).slice(0, 12);
+  const d = digitsOf(value).slice(0, 10);
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6)].filter(Boolean).join(' ');
+}
+
+/** National part of a Kenyan number: strips +254 / 254 / a leading 0, keeps 9 digits. */
+function nationalKenya(value: string): string {
+  let d = digitsOf(value);
+  if (d.startsWith('254')) d = d.slice(3);
+  return d.replace(/^0/, '').slice(0, 9);
+}
+
+const formatKenya = (value: string) => (nationalKenya(value).match(/.{1,3}/g) || []).join(' ');
 
 export function MobileMoneyForm({
   onSubmit,
@@ -29,136 +54,140 @@ export function MobileMoneyForm({
   isLoading = false,
   initialPhone = '',
   hideCancel = false,
+  mode = 'network',
+  submitLabel = 'Continue',
 }: MobileMoneyFormProps) {
-  const [phone, setPhone] = useState(initialPhone);
-  const [network, setNetwork] = useState<MobileMoneyNetwork | null>(null);
+  const mpesa = mode === 'mpesa';
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
+  const networkErrorId = `${inputId}-network-error`;
+
+  const [phone, setPhone] = useState(() => (mpesa ? formatKenya(initialPhone) : formatLocal(initialPhone)));
+  const [network, setNetwork] = useState<MobileMoneyNetwork | null>(() => {
+    if (mpesa) return 'mpesa';
+    return initialPhone ? (detectNetwork(initialPhone) as MobileMoneyNetwork | null) : null;
+  });
+  // Detection only overrides the choice when the number's operator changes, so a
+  // manual pick survives further typing within the same operator.
+  const [lastDetected, setLastDetected] = useState<string | null>(() => (!mpesa && initialPhone ? detectNetwork(initialPhone) : null));
   const [error, setError] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
-
-  // Auto-select the network that matches the number's prefix as it's typed.
-  // The user can still override by tapping a network button.
-  useEffect(() => {
-    const detected = detectNetwork(phone) as MobileMoneyNetwork | null;
-    if (detected) {
-      setNetwork(detected);
-    }
-  }, [phone]);
-
-  useEffect(() => {
-    if (touched && phone) {
-      if (!validatePhone(phone)) {
-        setError('Enter a valid mobile money number');
-      } else if (network && !validatePhone(phone, network)) {
-        setError("This number doesn't match the selected network");
-      } else {
-        setError(null);
-      }
-    }
-  }, [phone, network, touched]);
+  const [networkError, setNetworkError] = useState<string | null>(null);
 
   const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9+]/g, '');
-    setPhone(value);
-  }, []);
+    setError(null);
+    if (mpesa) {
+      setPhone(formatKenya(e.target.value));
+      return;
+    }
+    const next = formatLocal(e.target.value.replace(/[^0-9+]/g, ''));
+    setPhone(next);
+    const detected = detectNetwork(next.replace(/\s/g, ''));
+    if (detected && detected !== lastDetected) {
+      setNetwork(detected as MobileMoneyNetwork);
+      setNetworkError(null);
+    }
+    setLastDetected(detected);
+  }, [mpesa, lastDetected]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      setTouched(true);
 
-      if (!phone || !validatePhone(phone)) {
-        setError('Enter a valid mobile money number');
+      if (mpesa) {
+        const national = nationalKenya(phone);
+        if (national.length !== 9 || !/^[17]/.test(national)) {
+          setError('Enter a valid M-Pesa number');
+          return;
+        }
+        onSubmit({ phone: `254${national}`, network: 'mpesa' });
         return;
       }
 
+      const raw = phone.replace(/\s/g, '');
+      if (!raw || !validatePhone(raw)) {
+        setError('Enter a 10-digit number, like 024 412 8890');
+        return;
+      }
       if (!network) {
-        setError('Select your mobile money network');
+        setNetworkError('Choose your network');
         return;
       }
-
-      if (!validatePhone(phone, network)) {
-        setError("This number doesn't match the selected network");
+      if (!validatePhone(raw, network)) {
+        setError('This number doesn’t match the selected network');
         return;
       }
-
-      onSubmit({ phone, network });
+      onSubmit({ phone: raw, network });
     },
-    [phone, network, onSubmit]
+    [mpesa, phone, network, onSubmit]
   );
 
-  const isValid = !!phone && !!network && validatePhone(phone, network);
+  const logos = mpesa ? [] : getMethodMarks('GH', 'mobile_money');
+  const suffix = mpesa ? getMethodMarks('KE', 'mobile_money')[0] : undefined;
 
   return (
-    <form className="reevit-brut__momo" onSubmit={handleSubmit}>
-      <div className="reevit-brut__field">
-        <label htmlFor="reevit-phone" className="reevit-brut__field-label">
-          Phone number
-        </label>
-        <input
-          id="reevit-phone"
-          type="tel"
-          className={cn('reevit-brut__input', !!error && 'reevit-brut__input--error')}
-          placeholder="024 XXX XXXX"
-          value={phone}
-          onChange={handlePhoneChange}
-          onBlur={() => setTouched(true)}
-          disabled={isLoading}
-          autoComplete="tel"
-        />
-        {phone && !error && (
-          <div className="reevit-brut__input-note">{formatPhone(phone)}</div>
-        )}
-        {error && <div className="reevit-brut__input-error">{error}</div>}
-      </div>
-
-      <div className="reevit-brut__field">
-        <span className="reevit-brut__field-label">Select network</span>
-        <div className="reevit-brut__networks">
-          {networks.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className="reevit-brut__network"
-              data-selected={network === n.id}
-              onClick={() => setNetwork(n.id)}
+    <Scope>
+      <form className="reevit-form" data-reevit="momo-form" onSubmit={handleSubmit} noValidate>
+        <div className="reevit-field">
+          <label htmlFor={inputId}>{mpesa ? 'M-Pesa number' : 'Mobile money number'}</label>
+          <div className={cn('reevit-input', mpesa && 'reevit-input--prefixed', !!error && 'reevit-input--invalid')}>
+            {mpesa && <span className="reevit-prefix" aria-hidden="true">+254</span>}
+            <input
+              id={inputId}
+              type="tel"
+              inputMode="tel"
+              className="reevit-mono"
+              autoComplete="tel-national"
+              placeholder={mpesa ? '712 345 678' : '024 412 8890'}
+              value={phone}
+              onChange={handlePhoneChange}
               disabled={isLoading}
-            >
-              {n.name}
-            </button>
-          ))}
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? errorId : undefined}
+              data-first=""
+            />
+            {suffix && (
+              <span className="reevit-suffix" aria-hidden="true">
+                <img src={suffix.src} data-mark={suffix.key} alt="" />
+              </span>
+            )}
+          </div>
+          {error && <p className="reevit-error" id={errorId} role="alert">{error}</p>}
         </div>
-      </div>
 
-      <div className="reevit-brut__momo-actions">
+        {!mpesa && (
+          <fieldset className="reevit-group">
+            <legend>Network</legend>
+            <div className="reevit-networks">
+              {NETWORKS.map((n) => {
+                const logo = logos.find((mark) => mark.key === n.id);
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className="reevit-network"
+                    aria-pressed={network === n.id}
+                    disabled={isLoading}
+                    onClick={() => { setNetwork(n.id); setNetworkError(null); }}
+                  >
+                    {logo && <img src={logo.src} data-mark={logo.key} alt="" />}
+                    {n.name}
+                  </button>
+                );
+              })}
+            </div>
+            {networkError && <p className="reevit-error" id={networkErrorId} role="alert">{networkError}</p>}
+          </fieldset>
+        )}
+
+        <button type="submit" className="reevit-cta" data-reevit="cta" disabled={isLoading}>
+          {isLoading ? 'Please wait' : submitLabel}
+        </button>
         {!hideCancel && (
-          <button
-            type="button"
-            className="reevit-brut__cta reevit-brut__cta--ghost"
-            onClick={onCancel}
-            disabled={isLoading}
-          >
-            <span>BACK</span>
+          <button type="button" className="reevit-cta-secondary" onClick={onCancel} disabled={isLoading}>
+            Back
           </button>
         )}
-        <button
-          type="submit"
-          className="reevit-brut__cta"
-          disabled={!isValid || isLoading}
-        >
-          {isLoading ? (
-            <span>PLEASE WAIT</span>
-          ) : (
-            <>
-              <span>CONTINUE</span>
-              <span>&rarr;</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      <p className="reevit-brut__momo-hint">
-        You will receive a USSD prompt on your phone to authorize the payment.
-      </p>
-    </form>
+      </form>
+    </Scope>
   );
 }

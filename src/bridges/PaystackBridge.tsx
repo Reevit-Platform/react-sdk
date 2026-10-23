@@ -216,7 +216,7 @@ export function PaystackBridge({
     }
   }, [autoStart, startPayment]);
 
-  return <LoadingState marker="PAYMENT GATEWAY" title="Connecting to Paystack" />;
+  return <LoadingState variant="line" title="Opening Paystack…" />;
 }
 
 // Export utility for manual initialization
