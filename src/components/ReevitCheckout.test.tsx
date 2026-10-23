@@ -677,10 +677,12 @@ describe('ReevitCheckout never treats a pending payment as paid', () => {
   async function providerSaysPaid(confirm: (poll: number) => unknown) {
     const { resumeTransaction } = installPaystackBridge();
     let poll = 0;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
-      String(input).includes('/confirm-intent')
-        ? new Response(JSON.stringify(confirm(++poll)), { status: 200 })
-        : new Response('{}', { status: 200 }));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (!String(input).includes('/confirm-intent')) return new Response('{}', { status: 200 });
+      const out = confirm(++poll);
+      if (out instanceof Error) throw out;
+      return out instanceof Response ? out : new Response(JSON.stringify(out), { status: 200 });
+    });
     vi.stubGlobal('fetch', fetchMock);
     const onSuccess = vi.fn();
     const onError = vi.fn();
@@ -726,6 +728,37 @@ describe('ReevitCheckout never treats a pending payment as paid', () => {
     expect(onSuccess.mock.calls[0][0]).toMatchObject({ status: 'success' });
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/confirm-intent')).length).toBe(4);
+  });
+
+
+  const NON_DEFINITIVE: Array<[string, (poll: number) => unknown]> = [
+    ['a 503', (poll) => (poll === 1 ? new Response('{"message":"down"}', { status: 503 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['a 429', (poll) => (poll === 1 ? new Response('{}', { status: 429 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['a network error', (poll) => (poll === 1 ? new TypeError('Failed to fetch') : { id: 'pay_mock_1', status: 'succeeded' })],
+    ['an unparseable answer', (poll) => (poll === 1 ? new Response('<html>bad gateway</html>', { status: 200 }) : { id: 'pay_mock_1', status: 'succeeded' })],
+  ];
+
+  it.each(NON_DEFINITIVE)('keeps confirming, with no Try again, when the first check is %s', async (_name, respond) => {
+    const { onSuccess, onError } = await providerSaysPaid(respond);
+
+    expect(screen.getByText('Confirming your payment')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(document.querySelector('[data-reevit="failure"]')).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+
+    await advance(16_000);
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('shows the failure panel when the first check is a definitive decline', async () => {
+    const { onSuccess, onError } = await providerSaysPaid(() => new Response('{"message":"Card declined"}', { status: 402 }));
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-reevit="failure"]')).not.toBeNull();
+    expect(screen.queryByText('Confirming your payment')).toBeNull();
   });
 
   it('can be closed while confirming, without cancelling the payment or asking to stay', async () => {

@@ -23,7 +23,7 @@ import {
   type PaymentIntentResponse,
 } from '@reevit/core';
 import { SDK_VERSION } from '../version';
-import { isPaymentFailure, pollPaymentStatus } from '../utils/pollPaymentStatus';
+import { isDefinitiveFailure, isPaymentFailure, pollPaymentStatus } from '../utils/pollPaymentStatus';
 
 // State shape
 interface ReevitState {
@@ -700,20 +700,28 @@ export function useReevit(options: UseReevitOptions) {
         // If we have a clientSecret, use the public confirm-intent endpoint
         const paymentId = state.paymentIntent.id;
         const clientSecret = state.paymentIntent.clientSecret;
-        const confirm = () =>
-          clientSecret ? apiClient.confirmPaymentIntent(paymentId, clientSecret) : apiClient.confirmPayment(paymentId);
+        const confirm = async () => {
+          try {
+            return await (clientSecret ? apiClient.confirmPaymentIntent(paymentId, clientSecret) : apiClient.confirmPayment(paymentId));
+          } catch {
+            return { error: { code: 'network_error', message: 'Could not reach Reevit.', recoverable: true } as PaymentError };
+          }
+        };
 
         const first = await confirm();
         if (controller.signal.aborted) return;
 
-        if (first.error) {
+        // The backend saying outright that the payment failed is a failure. Anything
+        // else (network, timeout, 5xx, 429, junk) says nothing: the buyer may already
+        // be debited, so keep confirming instead of offering a retry.
+        if (first.error && isDefinitiveFailure(first.error)) {
           console.error('[useReevit] Confirmation error:', first.error);
           fail(first.error);
           return;
         }
 
         let confirmed = first.data;
-        if (confirmed?.status !== 'succeeded' && !isPaymentFailure(confirmed?.status)) {
+        if (first.error || (confirmed?.status !== 'succeeded' && !isPaymentFailure(confirmed?.status))) {
           setConfirmation('confirming');
           onStateChange?.('confirming');
           const settled = await pollPaymentStatus({

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { isPaymentFailure, pollPaymentStatus } from './pollPaymentStatus';
+import { isDefinitiveFailure, isPaymentFailure, pollPaymentStatus } from './pollPaymentStatus';
 
 describe('pollPaymentStatus', () => {
   beforeEach(() => {
@@ -109,5 +109,24 @@ describe('isPaymentFailure', () => {
     expect(isPaymentFailure('pending')).toBe(false);
     expect(isPaymentFailure('succeeded')).toBe(false);
     expect(isPaymentFailure(undefined)).toBe(false);
+  });
+});
+
+describe('isDefinitiveFailure', () => {
+  const err = (httpStatus?: number) => ({ code: 'x', message: 'y', details: { httpStatus } });
+
+  it('is true for a backend 4xx that speaks about the payment', () => {
+    expect(isDefinitiveFailure(err(402))).toBe(true);
+    expect(isDefinitiveFailure(err(400))).toBe(true);
+    expect(isDefinitiveFailure(err(422))).toBe(true);
+  });
+
+  it.each([401, 403, 404, 408, 409, 425, 429, 500, 502, 503, undefined])('is false for %s', (status) => {
+    expect(isDefinitiveFailure(err(status))).toBe(false);
+  });
+
+  it('is false for a transport error with no status', () => {
+    expect(isDefinitiveFailure({ code: 'network_error', message: 'offline' })).toBe(false);
+    expect(isDefinitiveFailure(undefined)).toBe(false);
   });
 });

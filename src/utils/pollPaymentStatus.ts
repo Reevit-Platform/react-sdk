@@ -37,6 +37,19 @@ const FAILED_STATUSES = new Set(['failed', 'canceled', 'cancelled', 'expired', '
 
 export const isPaymentFailure = (status?: string): boolean => !!status && FAILED_STATUSES.has(status.toLowerCase());
 
+/** 4xx answers that say nothing about the payment itself: auth, routing, timeouts, conflicts, rate limits. */
+const INCONCLUSIVE_CLIENT_ERRORS = new Set([401, 403, 404, 408, 409, 425, 429]);
+
+/**
+ * Whether a failed confirm call is the backend definitively saying the payment did not
+ * go through (a 4xx such as a 402 decline). Transport errors, timeouts, 5xx, 429 and
+ * unparseable answers are not: the payment may well have succeeded.
+ */
+export function isDefinitiveFailure(error: unknown): boolean {
+  const status = (error as { details?: { httpStatus?: unknown } } | null | undefined)?.details?.httpStatus;
+  return typeof status === 'number' && status >= 400 && status < 500 && !INCONCLUSIVE_CLIENT_ERRORS.has(status);
+}
+
 /** Resolves false when the signal aborts first. */
 function sleep(ms: number, signal: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
