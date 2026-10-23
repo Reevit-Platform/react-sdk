@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ReevitCheckout } from '../src/components/ReevitCheckout';
 import '../src/styles.css';
+import logoBlack from './img/logo-short-black.png';
 
 type ProviderId = 'paystack' | 'flutterwave' | 'hubtel' | 'monnify' | 'stripe' | 'mpesa';
 
@@ -18,8 +19,8 @@ const ALL_PROVIDERS: { provider: ProviderId; name: string; methods: string[] }[]
 function PreviewApp() {
   const [isOpen, setIsOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-  const [companyName, setCompanyName] = useState('Acme Store');
-  const [logoUrl, setLogoUrl] = useState('https://i.imgur.com/bzUR5Lm.png');
+  const [companyName, setCompanyName] = useState('Kente & Co.');
+  const [logoUrl, setLogoUrl] = useState(logoBlack);
   const [amount, setAmount] = useState(20000);
   const [currency, setCurrency] = useState('GHS');
   const [connected, setConnected] = useState<Record<ProviderId, boolean>>({
@@ -81,7 +82,7 @@ function PreviewApp() {
             border: '1px solid rgba(255,255,255,0.08)',
             fontFamily: "'Geist Mono', monospace",
           }}>
-            ReevitCheckout · brutalist
+            ReevitCheckout · ledger
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -103,8 +104,9 @@ function PreviewApp() {
         }}>
           <SectionLabel>Connected providers</SectionLabel>
           <p style={{ fontSize: 10.5, color: '#71717a', lineHeight: 1.5, marginTop: -6 }}>
-            Toggle which PSPs this merchant has connected. Each provider only
-            exposes the methods it actually supports.
+            Toggle which PSPs this merchant has connected. The checkout lists the
+            union of their methods and routes each tap to one provider. For fixed
+            states with no network calls, open parity.html.
           </p>
           {ALL_PROVIDERS.map((p) => (
             <CheckRow

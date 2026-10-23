@@ -1,0 +1,22 @@
+/* Parity harness only: a fake merchant page inside a frame, matching the prototype's harness.
+   Not shipped. Uses the SDK's own bundled fonts, so it makes no network requests. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: #121211; font: 400 14px/1.5 'Reevit Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.stage { display: flex; justify-content: center; padding: 28px 0 60px; }
+/* transform makes the checkout's position:fixed root resolve against the frame, not the viewport. */
+.frame { position: relative; width: 100%; max-width: 1200px; height: 760px; border-radius: 16px; overflow: hidden; background: #f4f3ee; color: #151513; transform: translateZ(0); }
+.mx { font-family: 'Reevit Inter', system-ui, sans-serif; color: #151513; }
+.mx-nav { display: flex; align-items: center; gap: 10px; padding: 18px 28px; border-bottom: 1px solid rgba(21, 21, 19, .08); }
+.mx-nav img { height: 20px; display: block; }
+.mx-nav b { font: 600 15px 'Reevit Display', 'Reevit Inter', sans-serif; }
+.mx-nav span { margin-left: auto; font-size: 13px; color: #6b6a64; }
+.mx-main { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; padding: 40px 28px; max-width: 980px; margin: 0 auto; }
+.mx-ph { aspect-ratio: 4/3; border-radius: 12px; background: repeating-linear-gradient(135deg, #e6e4dc 0 14px, #ece9e1 14px 28px); }
+.mx h1 { font: 600 26px/1.2 'Reevit Display', 'Reevit Inter', sans-serif; letter-spacing: -.02em; margin: 0 0 6px; }
+.mx-p { font: 500 18px 'Reevit Mono', monospace; font-variant-numeric: tabular-nums; margin: 0 0 18px; }
+.mx-li { display: flex; justify-content: space-between; font-size: 13px; color: #4a4944; padding: 8px 0; border-bottom: 1px solid rgba(21, 21, 19, .08); }
+.mx-li i { font-style: normal; font-family: 'Reevit Mono', monospace; font-variant-numeric: tabular-nums; }
+.mx-pay { display: block; width: 100%; text-align: center; margin-top: 22px; padding: 13px; border: 0; border-radius: 999px; background: #151513; color: #f4f3ee; font: 500 14px 'Reevit Inter', sans-serif; cursor: pointer; }
+@media (max-width: 600px) { .mx-main { grid-template-columns: 1fr; gap: 20px; padding: 20px; } }
+@media (max-width: 480px) { .stage { padding: 0; } .frame { height: 844px; border-radius: 36px; } }
