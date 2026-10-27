@@ -46,20 +46,28 @@
   },
   "keywords": [
     "reevit",
+    "payment-orchestration",
     "payments",
     "checkout",
     "africa",
+    "ghana",
+    "nigeria",
+    "kenya",
     "react",
     "paystack",
+    "hubtel",
+    "flutterwave",
+    "mpesa",
+    "moolre",
     "mobile-money"
   ],
-  "author": "Reevit",
+  "author": "Reevit <support@reevit.io> (https://reevit.io)",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/Reevit-Platform/react-sdk.git"
   },
-  "homepage": "https://github.com/Reevit-Platform/react-sdk#readme",
+  "homepage": "https://reevit.io",
   "bugs": {
     "url": "https://github.com/Reevit-Platform/react-sdk/issues"
   },
