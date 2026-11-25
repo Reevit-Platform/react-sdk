@@ -31,6 +31,7 @@ interface FlutterwaveConfig {
     logo?: string;
   };
   meta?: Record<string, unknown>;
+  redirect_url?: string;
   callback: (response: FlutterwaveResponse) => void;
   onclose: () => void;
 }
@@ -59,6 +60,8 @@ interface FlutterwaveBridgeProps {
   description?: string;
   logo?: string;
   metadata?: Record<string, unknown>;
+  /** Flutterwave navigates here when done, instead of calling `onSuccess`. */
+  redirectUrl?: string;
   onSuccess: (result: PaymentResult) => void;
   onError: (error: PaymentError) => void;
   onClose: () => void;
@@ -104,6 +107,7 @@ export function FlutterwaveBridge({
   description,
   logo,
   metadata,
+  redirectUrl,
   onSuccess,
   onError,
   onClose,
@@ -138,6 +142,8 @@ export function FlutterwaveBridge({
           logo,
         },
         meta: metadata,
+        // Flutterwave prefers redirect_url over callback, so send it only when asked.
+        ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
         callback: (response: FlutterwaveResponse) => {
           if (response.status === 'successful') {
             const result: PaymentResult = {
@@ -190,6 +196,7 @@ export function FlutterwaveBridge({
     description,
     logo,
     metadata,
+    redirectUrl,
     onSuccess,
     onError,
     onClose,
