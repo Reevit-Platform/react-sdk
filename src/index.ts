@@ -18,6 +18,7 @@ export {
   PaystackBridge,
   HubtelBridge,
   FlutterwaveBridge,
+  flutterwaveTxRef,
   // New
   StripeBridge,
   MonnifyBridge,

@@ -5,7 +5,7 @@ export { PaystackBridge, loadPaystackScript } from './PaystackBridge';
 export { HubtelBridge, openHubtelPopup } from './HubtelBridge';
 
 // Flutterwave
-export { FlutterwaveBridge, loadFlutterwaveScript } from './FlutterwaveBridge';
+export { FlutterwaveBridge, flutterwaveTxRef, loadFlutterwaveScript } from './FlutterwaveBridge';
 
 // Stripe
 export { StripeBridge, loadStripeScript } from './StripeBridge';

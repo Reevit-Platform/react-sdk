@@ -23,7 +23,7 @@ import { CheckoutShell, type FooterProvider } from './CheckoutShell';
 import { ReceiptPanel, FailurePanel, UnconfirmedPanel } from './ResultPanels';
 import { PaystackBridge } from '../bridges/PaystackBridge';
 import { HubtelBridge } from '../bridges/HubtelBridge';
-import { FlutterwaveBridge } from '../bridges/FlutterwaveBridge';
+import { FlutterwaveBridge, flutterwaveTxRef } from '../bridges/FlutterwaveBridge';
 import { MonnifyBridge } from '../bridges/MonnifyBridge';
 import { MPesaBridge } from '../bridges/MPesaBridge';
 import { StripeBridge } from '../bridges/StripeBridge';
@@ -786,7 +786,8 @@ export function ReevitCheckout({
             publicKey={pspKey}
             amount={displayAmount}
             currency={displayCurrency}
-            reference={paymentIntent?.reference || reference}
+            reference={flutterwaveTxRef(paymentIntent, reference)}
+            orderReference={reference || (metadata?.reference as string | undefined)}
             email={email}
             phone={momoData?.phone || phone}
             metadata={bridgeMetadata}

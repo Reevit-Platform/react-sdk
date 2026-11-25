@@ -1,3 +1,9 @@
+# @reevit/react — 0.14.2
+
+- **Flutterwave payments are now confirmed.** The Flutterwave window paid under the merchant's own reference, while Reevit checks and binds the payment by the reference it created it under (`pf_…`). The two never met, so a paid payment stayed "needs action" and `onSuccess` never fired. The window now pays under Reevit's reference.
+- `onSuccess` still receives **your** reference in `reference`, not Reevit's.
+- New export `flutterwaveTxRef(intent, fallback?)`, for anyone opening `FlutterwaveBridge` themselves: pass its result as `reference`.
+
 # @reevit/react — 0.14.1
 
 - **`returnUrl` (Flutterwave).** A new optional prop. When set, the Flutterwave window is opened with `redirect_url`, for methods that send the payer off the page to approve (Ghana mobile money). Flutterwave then navigates to that address when it is done, with `status`, `tx_ref` and `transaction_id` in the URL, and does **not** call `onSuccess`: Flutterwave uses a redirect in place of the callback when both are given. Confirm the payment on that page. Unset, nothing changes.
