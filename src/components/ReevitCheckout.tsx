@@ -99,6 +99,7 @@ export function ReevitCheckout({
   paymentLinkCode,
   paymentMethods = ['card', 'mobile_money'],
   initialPaymentIntent,
+  returnUrl,
   // Callbacks
   onSuccess,
   onError,
@@ -789,6 +790,7 @@ export function ReevitCheckout({
             email={email}
             phone={momoData?.phone || phone}
             metadata={bridgeMetadata}
+            redirectUrl={returnUrl}
             onSuccess={handlePSPSuccess}
             onError={handlePSPError}
             onClose={handlePSPClose}

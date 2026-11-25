@@ -62,3 +62,26 @@ describe('FlutterwaveBridge currency units', () => {
     expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000, currency: 'XOF' }));
   });
 });
+
+describe('FlutterwaveBridge return address', () => {
+  const open = async (redirectUrl?: string) => {
+    const checkout = vi.fn();
+    window.FlutterwaveCheckout = checkout;
+    render(<FlutterwaveBridge publicKey="test" amount={5000} currency="GHS" email="a@example.com"
+      redirectUrl={redirectUrl} onSuccess={vi.fn()} onError={vi.fn()} onClose={vi.fn()} />);
+    await waitFor(() => expect(checkout).toHaveBeenCalledTimes(1));
+    return checkout.mock.calls[0][0];
+  };
+
+  // Flutterwave uses a redirect in place of the callback, so it must be asked for.
+  it('sends no redirect_url unless one is given', async () => {
+    const config = await open();
+    expect('redirect_url' in config).toBe(false);
+    expect(typeof config.callback).toBe('function');
+  });
+
+  it('sends the return address it was given', async () => {
+    const config = await open('https://shop.example/checkout/return');
+    expect(config.redirect_url).toBe('https://shop.example/checkout/return');
+  });
+});

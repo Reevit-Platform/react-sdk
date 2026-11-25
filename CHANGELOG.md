@@ -1,3 +1,7 @@
+# @reevit/react — 0.14.1
+
+- **`returnUrl` (Flutterwave).** A new optional prop. When set, the Flutterwave window is opened with `redirect_url`, for methods that send the payer off the page to approve (Ghana mobile money). Flutterwave then navigates to that address when it is done, with `status`, `tx_ref` and `transaction_id` in the URL, and does **not** call `onSuccess`: Flutterwave uses a redirect in place of the callback when both are given. Confirm the payment on that page. Unset, nothing changes.
+
 # @reevit/react — 0.14.0
 
 ## Bank transfer in Reevit's own screens
