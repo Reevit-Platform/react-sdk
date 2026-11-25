@@ -47,11 +47,31 @@ interface FlutterwaveResponse {
   payment_type: string;
 }
 
+/**
+ * The `tx_ref` to open Flutterwave's window with.
+ *
+ * Reevit creates the Flutterwave payment server-side under its own reference
+ * (`pf_…`, returned as `provider_ref_id`) and later asks Flutterwave about that
+ * reference, both when it checks the payment's status and when it binds
+ * Flutterwave's webhook to the payment. The window must pay under the same
+ * reference, or Reevit never learns the payer paid.
+ */
+export function flutterwaveTxRef(
+  intent: { providerRefId?: string; reference?: string; id?: string } | null | undefined,
+  fallback?: string
+): string {
+  const stored = intent?.providerRefId?.trim();
+  if (stored && stored.startsWith('pf_')) return stored;
+  return intent?.reference || fallback || intent?.id || `flw_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 interface FlutterwaveBridgeProps {
   publicKey: string;
   amount: number;
   currency?: string;
   reference?: string;
+  /** The merchant's own reference, handed back in `onSuccess`. `reference` is what Flutterwave is charged under. */
+  orderReference?: string;
   email: string;
   phone?: string;
   name?: string;
@@ -99,6 +119,7 @@ export function FlutterwaveBridge({
   amount,
   currency = 'GHS',
   reference,
+  orderReference,
   email,
   phone,
   name,
@@ -148,7 +169,7 @@ export function FlutterwaveBridge({
           if (response.status === 'successful') {
             const result: PaymentResult = {
               paymentId: response.transaction_id.toString(),
-              reference: response.tx_ref,
+              reference: orderReference || response.tx_ref,
               amount: toMinorUnits(response.amount, response.currency),
               currency: response.currency,
               paymentMethod: response.payment_type === 'mobilemoney' ? 'mobile_money' : 'card',
@@ -188,6 +209,7 @@ export function FlutterwaveBridge({
     amount,
     currency,
     reference,
+    orderReference,
     email,
     phone,
     name,
